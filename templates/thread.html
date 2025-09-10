@@ -17,7 +17,7 @@
         }
 
         .sidebar {
-            width: 400px;
+            width: 250px;
             background: white;
             border-right: 1px solid #ddd;
             overflow-y: auto;
@@ -33,12 +33,12 @@
         .header {
             background: #343a40;
             color: white;
-            padding: 20px;
+            padding: 12px;
         }
 
         .header h1 {
             margin: 0;
-            font-size: 18px;
+            font-size: 14px;
         }
 
         .header a {
@@ -51,7 +51,7 @@
         }
 
         .message-item {
-            padding: 15px;
+            padding: 4px 8px;
             border-bottom: 1px solid #eee;
             cursor: pointer;
             transition: background 0.2s;
@@ -69,13 +69,15 @@
         .message-subject {
             font-weight: 500;
             color: #333;
-            margin-bottom: 5px;
-            font-size: 14px;
+            margin-bottom: 1px;
+            font-size: 11px;
+            line-height: 1.2;
         }
 
         .message-meta {
-            font-size: 12px;
+            font-size: 9px;
             color: #666;
+            line-height: 1.1;
         }
 
         .email-content {
@@ -129,9 +131,9 @@
 
         .thread-info {
             background: #e9ecef;
-            padding: 15px;
+            padding: 8px;
             border-bottom: 1px solid #ddd;
-            font-size: 14px;
+            font-size: 11px;
             color: #666;
         }
     </style>
@@ -153,16 +155,15 @@
                 <div class="message-item {% if loop.index0 == 0 %}selected{% endif %}"
                      onclick="showMessage('{{ message.message_id }}', this)"
                      id="msg-{{ message.message_id|replace('<', '')|replace('>', '')|replace('@', '_at_')|replace('.', '_') }}"
-                     style="padding-left: {{ 15 + (message.level or 0) * 20 }}px;">
+                     style="padding-left: {{ 8 + (message.level or 0) * 12 }}px;">
                     <div class="message-subject">
                         {% if message.level and message.level > 0 %}
                             <span style="color: #999;">{{ '└─ ' if message.level == 1 else '  ' * (message.level - 1) + '└─ ' }}</span>
                         {% endif %}
-                        {{ message.subject[:80] }}{% if message.subject|length > 80 %}...{% endif %}
+                        {{ message.subject[:50] }}{% if message.subject|length > 50 %}...{% endif %}
                     </div>
                     <div class="message-meta">
-                        {{ message.from.split('<')[0].strip() if '<' in message.from else message.from }}<br>
-                        {{ message.date[:16] if message.date else 'No date' }}
+                        {{ message.from.split('<')[0].strip() if '<' in message.from else message.from }} • {{ message.date[:10] if message.date else 'No date' }}
                     </div>
                 </div>
                 {% endfor %}

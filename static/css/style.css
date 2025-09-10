@@ -10,7 +10,7 @@ body {
 }
 
 .sidebar {
-    width: 250px;
+    width: 40%;
     background: white;
     border-right: 1px solid #ddd;
     overflow-y: auto;
@@ -18,7 +18,7 @@ body {
 }
 
 .main-content {
-    flex: 1;
+    width: 60%;
     background: white;
     overflow-y: auto;
 }
@@ -115,7 +115,7 @@ body {
 .email-body {
     padding: 30px;
     white-space: pre-wrap;
-    font-family: 'Courier New', monospace;
+    font-family: 'Inconsolata', 'Courier New', monospace;
     font-size: 14px;
     line-height: 1.5;
     color: #333;

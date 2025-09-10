@@ -70,12 +70,6 @@ function updateCurrentMessage() {
 // Add scroll listener to main content
 document.getElementById('main-content').addEventListener('scroll', updateCurrentMessage);
 
-function escapeHtml(text) {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}
-
 // Handle URL hash on page load
 function handleInitialHash() {
   const hash = window.location.hash;

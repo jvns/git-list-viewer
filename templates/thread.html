@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ target_message.subject }} - Git Mailing List Thread</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inconsolata:wght@400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
@@ -27,7 +30,7 @@
                         {% if message.level and message.level > 0 %}
                             <span style="color: #999;">{{ '└─ ' if message.level == 1 else '  ' * (message.level - 1) + '└─ ' }}</span>
                         {% endif %}
-                        {{ message.subject[:50] }}{% if message.subject|length > 50 %}...{% endif %}
+                        {{ message.subject[:80] }}{% if message.subject|length > 80 %}...{% endif %}
                     </div>
                     <div class="message-meta">
                         {{ message.from.split('<')[0].strip() if '<' in message.from else message.from }} • {{ message.date[:10] if message.date else 'No date' }}

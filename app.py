@@ -22,9 +22,6 @@ def sanitize_message_id(message_id):
 app.jinja_env.filters["sanitize_message_id"] = sanitize_message_id
 
 
-
-
-
 def normalize_subject(subject):
     """Remove Re:, Fwd:, etc. and normalize subject"""
     return re.sub(r"^(Re|Fwd|Fw):\s*", "", subject, flags=re.IGNORECASE).strip()
@@ -88,7 +85,8 @@ def link_replies_by_subject(root_messages, subject_dict):
             if normalized_subject in subject_dict:
                 # Find potential parents (non-reply messages)
                 potential_parents = [
-                    m for m in subject_dict[normalized_subject]
+                    m
+                    for m in subject_dict[normalized_subject]
                     if not m.get("subject", "").lower().startswith("re:")
                 ]
                 if potential_parents:
@@ -107,12 +105,13 @@ def flatten_tree(messages):
         if msg.get("children"):
             yield from flatten_tree(msg["children"])
 
+
 def display_subject(msg):
     if not msg.get("parent"):
-        return msg.get('subject')
+        return msg.get("subject")
 
-    current_subject = msg.get('subject')
-    parent_normalized = normalize_subject(msg['parent'].get('subject'))
+    current_subject = msg.get("subject")
+    parent_normalized = normalize_subject(msg["parent"].get("subject"))
     current_normalized = normalize_subject(current_subject)
 
     # Hide if parent subject is subset of current subject
@@ -120,6 +119,7 @@ def display_subject(msg):
         return ""
     else:
         return current_subject
+
 
 def build_thread_tree(messages):
     """Build nested thread structure from email messages"""

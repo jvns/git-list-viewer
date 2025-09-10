@@ -30,6 +30,13 @@ def normalize_subject(subject):
     return re.sub(r"^(Re|Fwd|Fw):\s*", "", subject, flags=re.IGNORECASE).strip()
 
 
+def attach_to_parent(msg, parent):
+    """Attach a message as a child of another message"""
+    parent["children"].append(msg)
+    msg["level"] = parent["level"] + 1
+    msg["parent"] = parent
+
+
 def build_message_indexes(messages):
     """Build lookup dictionaries for messages by ID and subject"""
     msg_dict = {}
@@ -62,10 +69,7 @@ def link_replies_by_headers(messages, msg_dict):
         in_reply_to = msg.get("in_reply_to", "").strip("<>")
 
         if in_reply_to and in_reply_to in msg_dict:
-            parent = msg_dict[in_reply_to]
-            parent["children"].append(msg)
-            msg["level"] = parent["level"] + 1
-            msg["parent"] = parent
+            attach_to_parent(msg, msg_dict[in_reply_to])
         else:
             root_messages.append(msg)
 
@@ -88,10 +92,7 @@ def link_replies_by_subject(root_messages, subject_dict):
                     if not m.get("subject", "").lower().startswith("re:")
                 ]
                 if potential_parents:
-                    parent = potential_parents[0]
-                    parent["children"].append(msg)
-                    msg["level"] = parent["level"] + 1
-                    msg["parent"] = parent
+                    attach_to_parent(msg, potential_parents[0])
                     continue
 
         final_roots.append(msg)

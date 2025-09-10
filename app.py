@@ -272,14 +272,25 @@ def build_thread_tree(messages):
     """Build nested thread structure from email messages"""
     # Create a dict for quick lookup by message ID
     msg_dict = {}
+    subject_dict = {}  # For subject-based threading fallback
+    
     for msg in messages:
         msg_id = msg.get('message_id', '').strip('<>')
         if msg_id:
             msg_dict[msg_id] = msg
             msg['children'] = []
             msg['level'] = 0
+            
+        # Also index by normalized subject for fallback threading
+        subject = msg.get('subject', '').strip()
+        # Remove Re:, Fwd:, etc. and normalize
+        normalized_subject = re.sub(r'^(Re|Fwd|Fw):\s*', '', subject, flags=re.IGNORECASE).strip()
+        if normalized_subject:
+            if normalized_subject not in subject_dict:
+                subject_dict[normalized_subject] = []
+            subject_dict[normalized_subject].append(msg)
     
-    # Build the tree structure
+    # Build the tree structure using In-Reply-To headers
     root_messages = []
     
     for msg in messages:
@@ -292,6 +303,21 @@ def build_thread_tree(messages):
             parent['children'].append(msg)
             msg['level'] = parent['level'] + 1
         else:
+            # Check if this is a subject-based reply
+            subject = msg.get('subject', '').strip()
+            if subject.lower().startswith('re:'):
+                # This looks like a reply, try to find parent by subject
+                normalized_subject = re.sub(r'^(Re|Fwd|Fw):\s*', '', subject, flags=re.IGNORECASE).strip()
+                if normalized_subject in subject_dict:
+                    # Find the earliest message with this subject as potential parent
+                    potential_parents = [m for m in subject_dict[normalized_subject] 
+                                       if not m.get('subject', '').lower().startswith('re:')]
+                    if potential_parents:
+                        parent = potential_parents[0]  # Take the first non-reply message
+                        parent['children'].append(msg)
+                        msg['level'] = parent['level'] + 1
+                        continue
+            
             # This is a root message (no parent found)
             root_messages.append(msg)
     

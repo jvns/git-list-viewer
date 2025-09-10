@@ -23,48 +23,31 @@ function showMessage(sanitizedId, element) {
 // Set up intersection observer to track visible messages
 function setupMessageObserver() {
   const observer = new IntersectionObserver((entries) => {
-    // Find the topmost visible message
-    let topMostEntry = null;
-    let topMostY = Infinity;
-    
     for (const entry of entries) {
       if (entry.isIntersecting) {
-        const rect = entry.boundingClientRect;
-        if (rect.top < topMostY) {
-          topMostY = rect.top;
-          topMostEntry = entry;
+        const sanitizedId = entry.target.id.replace('msg-', '');
+        window.location.hash = sanitizedId;
+        
+        // Update sidebar selection
+        document.querySelectorAll('.message-item.selected').forEach(el => {
+          el.classList.remove('selected');
+        });
+        
+        const sidebarItem = document.getElementById('sidebar-' + sanitizedId);
+        if (sidebarItem) {
+          sidebarItem.classList.add('selected');
+          sidebarItem.scrollIntoView({ behavior: 'auto', block: 'nearest' });
         }
-      }
-    }
-    
-    if (topMostEntry) {
-      const currentSanitizedId = topMostEntry.target.id.replace('msg-', '');
-      
-      // Update URL hash
-      window.location.hash = currentSanitizedId;
-      
-      // Update sidebar selection
-      document.querySelectorAll('.message-item.selected').forEach(el => {
-        el.classList.remove('selected');
-      });
-      
-      const currentItem = document.getElementById('sidebar-' + currentSanitizedId);
-      if (currentItem) {
-        currentItem.classList.add('selected');
-        // Scroll the sidebar item into view
-        currentItem.scrollIntoView({ behavior: 'auto', block: 'nearest' });
+        break; // Only handle the first intersecting element
       }
     }
   }, {
     root: document.getElementById('main-content'),
-    rootMargin: '-20% 0px -80% 0px', // Top 20% of the viewport
+    rootMargin: '-10% 0px -90% 0px',
     threshold: 0
   });
 
-  // Observe all email messages
-  document.querySelectorAll('.email-message').forEach(el => {
-    observer.observe(el);
-  });
+  document.querySelectorAll('.email-message').forEach(el => observer.observe(el));
 }
 
 // Handle URL hash on page load

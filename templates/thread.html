@@ -82,13 +82,19 @@
             padding: 0;
         }
 
+        .email-message {
+            border-bottom: 2px solid #ddd;
+            margin-bottom: 0;
+        }
+
+        .email-message:last-child {
+            border-bottom: none;
+        }
+
         .email-header {
             background: #f8f9fa;
             padding: 30px;
             border-bottom: 1px solid #ddd;
-            position: sticky;
-            top: 0;
-            z-index: 10;
         }
 
         .email-subject {
@@ -145,9 +151,15 @@
             <div class="thread-list">
                 {% for message in messages %}
                 <div class="message-item {% if loop.index0 == 0 %}selected{% endif %}"
-                     onclick="showMessage({{ loop.index0 }}, this)"
-                     id="msg-{{ loop.index0 }}">
-                    <div class="message-subject">{{ message.subject[:80] }}{% if message.subject|length > 80 %}...{% endif %}</div>
+                     onclick="showMessage('{{ message.message_id }}', this)"
+                     id="msg-{{ message.message_id|replace('<', '')|replace('>', '')|replace('@', '_at_')|replace('.', '_') }}"
+                     style="padding-left: {{ 15 + (message.level or 0) * 20 }}px;">
+                    <div class="message-subject">
+                        {% if message.level and message.level > 0 %}
+                            <span style="color: #999;">{{ '└─ ' if message.level == 1 else '  ' * (message.level - 1) + '└─ ' }}</span>
+                        {% endif %}
+                        {{ message.subject[:80] }}{% if message.subject|length > 80 %}...{% endif %}
+                    </div>
                     <div class="message-meta">
                         {{ message.from.split('<')[0].strip() if '<' in message.from else message.from }}<br>
                         {{ message.date[:16] if message.date else 'No date' }}
@@ -158,23 +170,30 @@
         </div>
 
         <div class="main-content" id="main-content">
-            <div class="email-content">
+            {% for message in messages %}
+            <div class="email-message" id="email-{{ message.message_id|replace('<', '')|replace('>', '')|replace('@', '_at_')|replace('.', '_') }}">
                 <div class="email-header">
-                    <div class="email-subject">{{ target_message.subject }}</div>
+                    <div class="email-subject">{{ message.subject }}</div>
                     <div class="email-meta">
-                        <div><strong>From:</strong> {{ target_message.from }}</div>
-                        <div><strong>Date:</strong> {{ target_message.date }}</div>
+                        <div><strong>From:</strong> {{ message.from }}</div>
+                        <div><strong>Date:</strong> {{ message.date }}</div>
                     </div>
                 </div>
-                <div class="email-body">{{ target_message.body }}</div>
+                <div class="email-body">{{ message.body }}</div>
             </div>
+            {% endfor %}
         </div>
     </div>
 
     <script>
         const messages = {{ messages | tojson }};
+        let isScrollingProgrammatically = false;
 
-        function showMessage(index, element) {
+        function sanitizeMessageId(messageId) {
+            return messageId.replace(/[<>]/g, '').replace(/@/g, '_at_').replace(/\./g, '_');
+        }
+
+        function showMessage(messageId, element) {
             // Remove previous selection
             document.querySelectorAll('.message-item.selected').forEach(el => {
                 el.classList.remove('selected');
@@ -183,32 +202,107 @@
             // Mark current as selected
             element.classList.add('selected');
 
-            const message = messages[index];
+            // Update URL hash with the actual message ID
+            window.location.hash = encodeURIComponent(messageId);
 
-            const html = `
-                <div class="email-content">
-                    <div class="email-header">
-                        <div class="email-subject">${escapeHtml(message.subject)}</div>
-                        <div class="email-meta">
-                            <div><strong>From:</strong> ${escapeHtml(message.from)}</div>
-                            <div><strong>Date:</strong> ${escapeHtml(message.date)}</div>
-                            ${message.message_id ? '<div><strong>Message-ID:</strong> ' + escapeHtml(message.message_id) + '</div>' : ''}
-                            ${message.in_reply_to ? '<div><strong>In-Reply-To:</strong> ' + escapeHtml(message.in_reply_to) + '</div>' : ''}
-                            ${message.references ? '<div><strong>References:</strong> ' + escapeHtml(message.references.substring(0, 100)) + (message.references.length > 100 ? '...' : '') + '</div>' : ''}
-                        </div>
-                    </div>
-                    <div class="email-body">${escapeHtml(message.body)}</div>
-                </div>
-            `;
-
-            document.getElementById('main-content').innerHTML = html;
+            // Scroll to the corresponding email in the main content
+            const sanitizedId = sanitizeMessageId(messageId);
+            const emailElement = document.getElementById('email-' + sanitizedId);
+            if (emailElement) {
+                isScrollingProgrammatically = true;
+                emailElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                setTimeout(() => {
+                    isScrollingProgrammatically = false;
+                }, 1000);
+            }
         }
+
+        // Track scroll position and highlight current message in sidebar
+        function updateCurrentMessage() {
+            if (isScrollingProgrammatically) return;
+
+            const mainContent = document.getElementById('main-content');
+            let currentMessageId = null;
+            
+            // Find which email is currently most visible
+            for (let i = 0; i < messages.length; i++) {
+                const message = messages[i];
+                const sanitizedId = sanitizeMessageId(message.message_id);
+                const emailElement = document.getElementById('email-' + sanitizedId);
+                
+                if (emailElement) {
+                    const rect = emailElement.getBoundingClientRect();
+                    const mainContentRect = mainContent.getBoundingClientRect();
+                    
+                    // Check if email is in view
+                    if (rect.top <= mainContentRect.top + 100) {
+                        currentMessageId = message.message_id;
+                    }
+                }
+            }
+            
+            if (currentMessageId) {
+                // Update URL hash
+                window.location.hash = encodeURIComponent(currentMessageId);
+                
+                // Update sidebar selection
+                document.querySelectorAll('.message-item.selected').forEach(el => {
+                    el.classList.remove('selected');
+                });
+                
+                const sanitizedId = sanitizeMessageId(currentMessageId);
+                const currentItem = document.getElementById('msg-' + sanitizedId);
+                if (currentItem) {
+                    currentItem.classList.add('selected');
+                    // Scroll the sidebar item into view
+                    currentItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+            }
+        }
+
+        // Add scroll listener to main content
+        document.getElementById('main-content').addEventListener('scroll', updateCurrentMessage);
 
         function escapeHtml(text) {
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
         }
+
+        // Handle URL hash on page load
+        function handleInitialHash() {
+            const hash = window.location.hash;
+            if (hash) {
+                const messageId = decodeURIComponent(hash.substring(1));
+                
+                // Find message with matching ID
+                const message = messages.find(m => m.message_id === messageId);
+                if (message) {
+                    const sanitizedId = sanitizeMessageId(messageId);
+                    const sidebarItem = document.getElementById('msg-' + sanitizedId);
+                    const emailElement = document.getElementById('email-' + sanitizedId);
+                    
+                    if (sidebarItem && emailElement) {
+                        // Select sidebar item
+                        document.querySelectorAll('.message-item.selected').forEach(el => {
+                            el.classList.remove('selected');
+                        });
+                        sidebarItem.classList.add('selected');
+                        
+                        // Scroll to email
+                        emailElement.scrollIntoView({ behavior: 'auto', block: 'start' });
+                        return;
+                    }
+                }
+            }
+            // Default to first message if no valid hash
+            updateCurrentMessage();
+        }
+
+        // Initialize with hash or first message selected
+        document.addEventListener('DOMContentLoaded', function() {
+            handleInitialHash();
+        });
     </script>
 </body>
 </html>

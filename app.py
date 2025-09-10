@@ -268,6 +268,47 @@ def parse_mbox_content(mbox_content):
     
     return messages
 
+def build_thread_tree(messages):
+    """Build nested thread structure from email messages"""
+    # Create a dict for quick lookup by message ID
+    msg_dict = {}
+    for msg in messages:
+        msg_id = msg.get('message_id', '').strip('<>')
+        if msg_id:
+            msg_dict[msg_id] = msg
+            msg['children'] = []
+            msg['level'] = 0
+    
+    # Build the tree structure
+    root_messages = []
+    
+    for msg in messages:
+        msg_id = msg.get('message_id', '').strip('<>')
+        in_reply_to = msg.get('in_reply_to', '').strip('<>')
+        
+        if in_reply_to and in_reply_to in msg_dict:
+            # This is a reply to another message
+            parent = msg_dict[in_reply_to]
+            parent['children'].append(msg)
+            msg['level'] = parent['level'] + 1
+        else:
+            # This is a root message (no parent found)
+            root_messages.append(msg)
+    
+    # Flatten the tree for display while preserving hierarchy
+    def flatten_tree(messages, result=None):
+        if result is None:
+            result = []
+        
+        for msg in messages:
+            result.append(msg)
+            if msg.get('children'):
+                flatten_tree(msg['children'], result)
+        
+        return result
+    
+    return flatten_tree(root_messages)
+
 @app.route('/commit/<commit_hash>')
 def view_commit(commit_hash):
     content = get_commit_content(commit_hash)
@@ -297,17 +338,20 @@ def view_message_by_id(message_id):
         # Cache the results
         cache_thread(message_id, mbox_content, messages)
     
+    # Build threaded structure
+    threaded_messages = build_thread_tree(messages)
+    
     # Find the specific message or show the first one
     target_message = None
-    for msg in messages:
+    for msg in threaded_messages:
         if message_id in msg.get('message_id', ''):
             target_message = msg
             break
     
     if not target_message:
-        target_message = messages[0]
+        target_message = threaded_messages[0]
     
-    return render_template('thread.html', messages=messages, target_message=target_message, message_id=message_id)
+    return render_template('thread.html', messages=threaded_messages, target_message=target_message, message_id=message_id)
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))

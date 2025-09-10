@@ -1,7 +1,7 @@
 const messages = window.messagesData;
 let isScrollingProgrammatically = false;
 
-function showMessage(messageId, element) {
+function showMessage(sanitizedId, element) {
   // Remove previous selection
   document.querySelectorAll('.message-item.selected').forEach(el => {
     el.classList.remove('selected');
@@ -10,12 +10,11 @@ function showMessage(messageId, element) {
   // Mark current as selected
   element.classList.add('selected');
 
-  // Update URL hash with the actual message ID
-  window.location.hash = encodeURIComponent(messageId);
+  // Update URL hash with the sanitized ID
+  window.location.hash = sanitizedId;
 
   // Scroll to the corresponding email in the main content
-  const sanitizedId = element.dataset.sanitizedId;
-  const emailElement = document.getElementById('email-' + sanitizedId);
+  const emailElement = document.getElementById('msg-' + sanitizedId);
   if (emailElement) {
     emailElement.scrollIntoView({ behavior: 'auto', block: 'start' });
   }
@@ -35,21 +34,20 @@ function updateCurrentMessage() {
 
     // Check if email is in view
     if (rect.top <= mainContentRect.top + 100) {
-      currentMessageId = emailElement.dataset.messageId;
-      currentSanitizedId = emailElement.id.replace('email-', '');
+      currentSanitizedId = emailElement.id.replace('msg-', '');
     }
   }
 
-  if (currentMessageId && currentSanitizedId) {
+  if (currentSanitizedId) {
     // Update URL hash
-    window.location.hash = encodeURIComponent(currentMessageId);
+    window.location.hash = currentSanitizedId;
 
     // Update sidebar selection
     document.querySelectorAll('.message-item.selected').forEach(el => {
       el.classList.remove('selected');
     });
 
-    const currentItem = document.getElementById('msg-' + currentSanitizedId);
+    const currentItem = document.getElementById('sidebar-' + currentSanitizedId);
     if (currentItem) {
       currentItem.classList.add('selected');
       // Scroll the sidebar item into view
@@ -65,16 +63,11 @@ document.getElementById('main-content').addEventListener('scroll', updateCurrent
 function handleInitialHash() {
   const hash = window.location.hash;
   if (hash) {
-    const messageId = decodeURIComponent(hash.substring(1));
-    
-    // Find sidebar item by looking for matching data-sanitized-id
-    const sidebarItems = document.querySelectorAll('.message-item');
-    for (const item of sidebarItems) {
-      const itemMessageId = item.onclick.toString().match(/'([^']+)'/)?.[1];
-      if (itemMessageId === messageId) {
-        item.click();
-        return;
-      }
+    const sanitizedId = hash.substring(1);
+    const sidebarItem = document.getElementById('sidebar-' + sanitizedId);
+    if (sidebarItem) {
+      sidebarItem.click();
+      return;
     }
   }
   // Default to first message if no valid hash

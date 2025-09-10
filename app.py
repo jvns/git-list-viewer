@@ -192,14 +192,8 @@ def build_thread_tree(messages):
 
             # Hide if parent subject is a subset of current subject
             if parent_normalized and parent_normalized in current_normalized:
-                print(
-                    f"HIDING: Parent '{parent_normalized}' found in '{current_normalized}'"
-                )
                 msg["display_subject"] = ""
             else:
-                print(
-                    f"SHOWING: Parent '{parent_normalized}' NOT in '{current_normalized}'"
-                )
                 msg["display_subject"] = current_subject
 
     # Clean up parent references to avoid circular reference in JSON serialization

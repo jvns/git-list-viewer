@@ -106,23 +106,19 @@ def flatten_tree(messages):
         if msg.get("children"):
             yield from flatten_tree(msg["children"])
 
+def display_subject(msg):
+    if not msg.get("parent"):
+        return msg.get('subject')
 
-def set_display_subjects(messages):
-    """Set display_subject for each message, hiding duplicates"""
-    for msg in messages:
-        if not msg.get("parent"):
-            msg["display_subject"] = msg.get("subject", "")
-        else:
-            current_subject = msg.get('subject')
-            parent_normalized = normalize_subject(msg['parent'].get('subject'))
-            current_normalized = normalize_subject(current_subject)
+    current_subject = msg.get('subject')
+    parent_normalized = normalize_subject(msg['parent'].get('subject'))
+    current_normalized = normalize_subject(current_subject)
 
-            # Hide if parent subject is subset of current subject
-            if parent_normalized in current_normalized:
-                msg["display_subject"] = ""
-            else:
-                msg["display_subject"] = current_subject
-
+    # Hide if parent subject is subset of current subject
+    if parent_normalized in current_normalized:
+        return ""
+    else:
+        return current_subject
 
 def cleanup_parent_references(messages):
     """Remove parent references to avoid circular refs in JSON"""
@@ -137,7 +133,8 @@ def build_thread_tree(messages):
     root_messages = link_replies_by_headers(messages, msg_dict)
     root_messages = link_replies_by_subject(root_messages, subject_dict)
     flattened_messages = list(flatten_tree(root_messages))
-    set_display_subjects(flattened_messages)
+    for msg in messages:
+        msg["display_subject"] = display_subject(msg)
     cleanup_parent_references(flattened_messages)
     return flattened_messages
 

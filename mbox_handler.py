@@ -5,6 +5,9 @@ import requests
 import gzip
 import mailbox
 import tempfile
+import sqlite3
+import json
+from datetime import datetime, timedelta
 from urllib.parse import quote
 
 
@@ -73,4 +76,97 @@ def parse_mbox_content(mbox_content):
     os.unlink(temp_file_path)
 
 
+    return messages
+
+
+def init_db():
+    """Initialize SQLite database for caching"""
+    conn = sqlite3.connect("mbox_cache.db")
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS mbox_cache (
+            message_id TEXT PRIMARY KEY,
+            mbox_content TEXT,
+            cached_at TIMESTAMP,
+            thread_data TEXT
+        )
+    """
+    )
+
+    conn.commit()
+    conn.close()
+
+
+def get_cached_thread(message_id):
+    """Get cached thread data if available and not expired"""
+    conn = sqlite3.connect("mbox_cache.db")
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """
+        SELECT thread_data, cached_at FROM mbox_cache
+        WHERE message_id = ?
+    """,
+        (message_id,),
+    )
+
+    result = cursor.fetchone()
+    conn.close()
+
+    if result:
+        thread_data, cached_at = result
+        cached_time = datetime.fromisoformat(cached_at)
+
+        # Cache expires after 1 hour
+        if datetime.now() - cached_time < timedelta(hours=1):
+            return json.loads(thread_data)
+
+    return None
+
+
+def cache_thread(message_id, mbox_content, messages):
+    """Cache thread data in SQLite"""
+    conn = sqlite3.connect("mbox_cache.db")
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """
+        INSERT OR REPLACE INTO mbox_cache
+        (message_id, mbox_content, cached_at, thread_data)
+        VALUES (?, ?, ?, ?)
+    """,
+        (message_id, mbox_content, datetime.now().isoformat(), json.dumps(messages)),
+    )
+
+    conn.commit()
+    conn.close()
+
+
+def get_thread_messages(message_id):
+    """Get thread messages, using cache if available or downloading if needed"""
+    # Initialize database if needed
+    init_db()
+    
+    # Check cache first
+    cached_messages = get_cached_thread(message_id)
+    
+    if cached_messages:
+        return cached_messages
+    
+    # Download and parse if not cached
+    mbox_content = download_mbox_thread(message_id)
+    
+    if not mbox_content:
+        return None
+    
+    messages = parse_mbox_content(mbox_content)
+    
+    if not messages:
+        return None
+    
+    # Cache the results
+    cache_thread(message_id, mbox_content, messages)
+    
     return messages

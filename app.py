@@ -2,11 +2,8 @@
 
 import os
 import re
-from datetime import datetime, timedelta
 from flask import Flask, render_template
-import sqlite3
-import json
-from mbox_handler import download_mbox_thread, parse_mbox_content
+from mbox_handler import get_thread_messages
 
 app = Flask(__name__)
 
@@ -25,73 +22,6 @@ def sanitize_message_id(message_id):
 app.jinja_env.filters["sanitize_message_id"] = sanitize_message_id
 
 
-def init_db():
-    """Initialize SQLite database for caching"""
-    conn = sqlite3.connect("mbox_cache.db")
-    cursor = conn.cursor()
-
-    cursor.execute(
-        """
-        CREATE TABLE IF NOT EXISTS mbox_cache (
-            message_id TEXT PRIMARY KEY,
-            mbox_content TEXT,
-            cached_at TIMESTAMP,
-            thread_data TEXT
-        )
-    """
-    )
-
-    conn.commit()
-    conn.close()
-
-
-def get_cached_thread(message_id):
-    """Get cached thread data if available and not expired"""
-    conn = sqlite3.connect("mbox_cache.db")
-    cursor = conn.cursor()
-
-    cursor.execute(
-        """
-        SELECT thread_data, cached_at FROM mbox_cache
-        WHERE message_id = ?
-    """,
-        (message_id,),
-    )
-
-    result = cursor.fetchone()
-    conn.close()
-
-    if result:
-        thread_data, cached_at = result
-        cached_time = datetime.fromisoformat(cached_at)
-
-        # Cache expires after 1 hour
-        if datetime.now() - cached_time < timedelta(hours=1):
-            return json.loads(thread_data)
-
-    return None
-
-
-def cache_thread(message_id, mbox_content, messages):
-    """Cache thread data in SQLite"""
-    conn = sqlite3.connect("mbox_cache.db")
-    cursor = conn.cursor()
-
-    cursor.execute(
-        """
-        INSERT OR REPLACE INTO mbox_cache
-        (message_id, mbox_content, cached_at, thread_data)
-        VALUES (?, ?, ?, ?)
-    """,
-        (message_id, mbox_content, datetime.now().isoformat(), json.dumps(messages)),
-    )
-
-    conn.commit()
-    conn.close()
-
-
-# Initialize database on startup
-init_db()
 
 
 
@@ -219,25 +149,10 @@ def index():
 @app.route("/<path:message_id>/")
 def view_message_by_id(message_id):
     """View message thread by Message-ID from lore.kernel.org"""
-    # Check cache first
-    cached_messages = get_cached_thread(message_id)
+    messages = get_thread_messages(message_id)
 
-    if cached_messages:
-        messages = cached_messages
-    else:
-        # Download and parse if not cached
-        mbox_content = download_mbox_thread(message_id)
-
-        if not mbox_content:
-            return f"Could not download thread for message ID {message_id}", 404
-
-        messages = parse_mbox_content(mbox_content)
-
-        if not messages:
-            return f"No messages found in thread for {message_id}", 404
-
-        # Cache the results
-        cache_thread(message_id, mbox_content, messages)
+    if not messages:
+        return f"Could not download thread for message ID {message_id}", 404
 
     # Build threaded structure
     threaded_messages = build_thread_tree(messages)

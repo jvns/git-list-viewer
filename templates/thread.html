@@ -298,6 +298,37 @@
             updateCurrentMessage();
         }
 
+        // Keyboard navigation
+        function handleKeyboardNavigation(event) {
+            if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') {
+                return; // Don't intercept when user is typing
+            }
+            
+            const currentSelected = document.querySelector('.message-item.selected');
+            if (!currentSelected) return;
+            
+            let targetElement = null;
+            
+            switch(event.key) {
+                case 'j':
+                case 'J':
+                    event.preventDefault();
+                    targetElement = currentSelected.nextElementSibling;
+                    break;
+                case 'k':
+                case 'K':
+                    event.preventDefault();
+                    targetElement = currentSelected.previousElementSibling;
+                    break;
+            }
+            
+            if (targetElement && targetElement.classList.contains('message-item')) {
+                targetElement.click();
+            }
+        }
+
+        document.addEventListener('keydown', handleKeyboardNavigation);
+
         // Initialize with hash or first message selected
         document.addEventListener('DOMContentLoaded', function() {
             handleInitialHash();

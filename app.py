@@ -120,22 +120,16 @@ def display_subject(msg):
     else:
         return current_subject
 
-def cleanup_parent_references(messages):
-    """Remove parent references to avoid circular refs in JSON"""
-    for msg in messages:
-        if "parent" in msg:
-            del msg["parent"]
-
-
 def build_thread_tree(messages):
     """Build nested thread structure from email messages"""
     msg_dict, subject_dict = build_message_indexes(messages)
     root_messages = link_replies_by_headers(messages, msg_dict)
     root_messages = link_replies_by_subject(root_messages, subject_dict)
     flattened_messages = list(flatten_tree(root_messages))
-    for msg in messages:
+    for msg in flattened_messages:
         msg["display_subject"] = display_subject(msg)
-    cleanup_parent_references(flattened_messages)
+        if "parent" in msg:
+            del msg["parent"]
     return flattened_messages
 
 

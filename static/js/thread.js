@@ -20,44 +20,52 @@ function showMessage(sanitizedId, element) {
   }
 }
 
-// Track scroll position and highlight current message in sidebar
-function updateCurrentMessage() {
-  const mainContent = document.getElementById('main-content');
-  let currentMessageId = null;
-  let currentSanitizedId = null;
-
-  // Find which email is currently most visible
-  const emailElements = document.querySelectorAll('.email-message');
-  for (const emailElement of emailElements) {
-    const rect = emailElement.getBoundingClientRect();
-    const mainContentRect = mainContent.getBoundingClientRect();
-
-    // Check if email is in view
-    if (rect.top <= mainContentRect.top + 100) {
-      currentSanitizedId = emailElement.id.replace('msg-', '');
+// Set up intersection observer to track visible messages
+function setupMessageObserver() {
+  const observer = new IntersectionObserver((entries) => {
+    // Find the topmost visible message
+    let topMostEntry = null;
+    let topMostY = Infinity;
+    
+    for (const entry of entries) {
+      if (entry.isIntersecting) {
+        const rect = entry.boundingClientRect;
+        if (rect.top < topMostY) {
+          topMostY = rect.top;
+          topMostEntry = entry;
+        }
+      }
     }
-  }
-
-  if (currentSanitizedId) {
-    // Update URL hash
-    window.location.hash = currentSanitizedId;
-
-    // Update sidebar selection
-    document.querySelectorAll('.message-item.selected').forEach(el => {
-      el.classList.remove('selected');
-    });
-
-    const currentItem = document.getElementById('sidebar-' + currentSanitizedId);
-    if (currentItem) {
-      currentItem.classList.add('selected');
-      // Scroll the sidebar item into view
-      currentItem.scrollIntoView({ behavior: 'auto', block: 'nearest' });
+    
+    if (topMostEntry) {
+      const currentSanitizedId = topMostEntry.target.id.replace('msg-', '');
+      
+      // Update URL hash
+      window.location.hash = currentSanitizedId;
+      
+      // Update sidebar selection
+      document.querySelectorAll('.message-item.selected').forEach(el => {
+        el.classList.remove('selected');
+      });
+      
+      const currentItem = document.getElementById('sidebar-' + currentSanitizedId);
+      if (currentItem) {
+        currentItem.classList.add('selected');
+        // Scroll the sidebar item into view
+        currentItem.scrollIntoView({ behavior: 'auto', block: 'nearest' });
+      }
     }
-  }
+  }, {
+    root: document.getElementById('main-content'),
+    rootMargin: '-20% 0px -80% 0px', // Top 20% of the viewport
+    threshold: 0
+  });
+
+  // Observe all email messages
+  document.querySelectorAll('.email-message').forEach(el => {
+    observer.observe(el);
+  });
 }
-
-// Add scroll listener to main content
-document.getElementById('main-content').addEventListener('scroll', updateCurrentMessage);
 
 // Handle URL hash on page load
 function handleInitialHash() {
@@ -107,5 +115,6 @@ document.addEventListener('keydown', handleKeyboardNavigation);
 
 // Initialize with hash or first message selected
 document.addEventListener('DOMContentLoaded', function() {
+  setupMessageObserver();
   handleInitialHash();
 });

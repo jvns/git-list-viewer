@@ -1,52 +1,62 @@
 #!/usr/bin/env python3
 
+import os
 import re
-import email
 from datetime import datetime, timedelta
 from flask import Flask, render_template
-import os
-import requests
-import gzip
-import mailbox
-from urllib.parse import quote
 import sqlite3
 import json
+from mbox_handler import download_mbox_thread, parse_mbox_content
 
 app = Flask(__name__)
 
+
 def sanitize_message_id(message_id):
     """Sanitize message ID for use in HTML element IDs"""
-    return message_id.replace('<', '').replace('>', '').replace('@', '_at_').replace('.', '_')
+    return (
+        message_id.replace("<", "")
+        .replace(">", "")
+        .replace("@", "_at_")
+        .replace(".", "_")
+    )
+
 
 # Register the function as a template filter
-app.jinja_env.filters['sanitize_message_id'] = sanitize_message_id
+app.jinja_env.filters["sanitize_message_id"] = sanitize_message_id
+
 
 def init_db():
     """Initialize SQLite database for caching"""
-    conn = sqlite3.connect('mbox_cache.db')
+    conn = sqlite3.connect("mbox_cache.db")
     cursor = conn.cursor()
 
-    cursor.execute('''
+    cursor.execute(
+        """
         CREATE TABLE IF NOT EXISTS mbox_cache (
             message_id TEXT PRIMARY KEY,
             mbox_content TEXT,
             cached_at TIMESTAMP,
             thread_data TEXT
         )
-    ''')
+    """
+    )
 
     conn.commit()
     conn.close()
 
+
 def get_cached_thread(message_id):
     """Get cached thread data if available and not expired"""
-    conn = sqlite3.connect('mbox_cache.db')
+    conn = sqlite3.connect("mbox_cache.db")
     cursor = conn.cursor()
 
-    cursor.execute('''
+    cursor.execute(
+        """
         SELECT thread_data, cached_at FROM mbox_cache
         WHERE message_id = ?
-    ''', (message_id,))
+    """,
+        (message_id,),
+    )
 
     result = cursor.fetchone()
     conn.close()
@@ -61,99 +71,29 @@ def get_cached_thread(message_id):
 
     return None
 
+
 def cache_thread(message_id, mbox_content, messages):
     """Cache thread data in SQLite"""
-    conn = sqlite3.connect('mbox_cache.db')
+    conn = sqlite3.connect("mbox_cache.db")
     cursor = conn.cursor()
 
-    cursor.execute('''
+    cursor.execute(
+        """
         INSERT OR REPLACE INTO mbox_cache
         (message_id, mbox_content, cached_at, thread_data)
         VALUES (?, ?, ?, ?)
-    ''', (
-        message_id,
-        mbox_content,
-        datetime.now().isoformat(),
-        json.dumps(messages)
-    ))
+    """,
+        (message_id, mbox_content, datetime.now().isoformat(), json.dumps(messages)),
+    )
 
     conn.commit()
     conn.close()
+
 
 # Initialize database on startup
 init_db()
 
 
-def download_mbox_thread(message_id):
-    """Download mbox file for a thread from lore.kernel.org"""
-    encoded_id = quote(message_id, safe='')
-    url = f"https://lore.kernel.org/all/{encoded_id}/t.mbox.gz"
-
-    try:
-        headers = {'User-Agent': 'curl/7.68.0'}
-        response = requests.get(url, headers=headers, timeout=30)
-        response.raise_for_status()
-
-        # Decompress the gzip content
-        mbox_content = gzip.decompress(response.content)
-        return mbox_content.decode('utf-8', errors='ignore')
-    except Exception as e:
-        print(f"Error downloading mbox: {e}")
-        return None
-
-def parse_mbox_content(mbox_content):
-    """Parse mbox content into email messages"""
-    messages = []
-
-    try:
-        # Write to a temporary file since mbox needs a file path
-        import tempfile
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.mbox', delete=False) as temp_file:
-            temp_file.write(mbox_content)
-            temp_file_path = temp_file.name
-
-        mbox = mailbox.mbox(temp_file_path)
-
-        for message in mbox:
-            msg_data = {
-                'subject': message.get('Subject', 'No Subject'),
-                'from': message.get('From', 'Unknown'),
-                'date': message.get('Date', ''),
-                'message_id': message.get('Message-ID', ''),
-                'in_reply_to': message.get('In-Reply-To', ''),
-                'references': message.get('References', ''),
-            }
-
-            # Get body
-            if message.is_multipart():
-                body = ''
-                for part in message.walk():
-                    if part.get_content_type() == 'text/plain':
-                        try:
-                            body += part.get_payload(decode=True).decode('utf-8', errors='ignore')
-                        except:
-                            body += str(part.get_payload())
-            else:
-                try:
-                    payload = message.get_payload(decode=True)
-                    if payload:
-                        body = payload.decode('utf-8', errors='ignore')
-                    else:
-                        body = str(message.get_payload())
-                except:
-                    body = str(message.get_payload())
-
-            msg_data['body'] = body
-            messages.append(msg_data)
-
-        # Clean up temporary file
-        os.unlink(temp_file_path)
-
-    except Exception as e:
-        print(f"Error parsing mbox: {e}")
-        return []
-
-    return messages
 
 def build_thread_tree(messages):
     """Build nested thread structure from email messages"""
@@ -162,17 +102,19 @@ def build_thread_tree(messages):
     subject_dict = {}  # For subject-based threading fallback
 
     for msg in messages:
-        msg_id = msg.get('message_id', '').strip('<>')
+        msg_id = msg.get("message_id", "").strip("<>")
         if msg_id:
             msg_dict[msg_id] = msg
-            msg['children'] = []
-            msg['level'] = 0
-            msg['parent'] = None
+            msg["children"] = []
+            msg["level"] = 0
+            msg["parent"] = None
 
         # Also index by normalized subject for fallback threading
-        subject = msg.get('subject', '').strip()
+        subject = msg.get("subject", "").strip()
         # Remove Re:, Fwd:, etc. and normalize
-        normalized_subject = re.sub(r'^(Re|Fwd|Fw):\s*', '', subject, flags=re.IGNORECASE).strip()
+        normalized_subject = re.sub(
+            r"^(Re|Fwd|Fw):\s*", "", subject, flags=re.IGNORECASE
+        ).strip()
         if normalized_subject:
             if normalized_subject not in subject_dict:
                 subject_dict[normalized_subject] = []
@@ -182,30 +124,37 @@ def build_thread_tree(messages):
     root_messages = []
 
     for msg in messages:
-        msg_id = msg.get('message_id', '').strip('<>')
-        in_reply_to = msg.get('in_reply_to', '').strip('<>')
+        msg_id = msg.get("message_id", "").strip("<>")
+        in_reply_to = msg.get("in_reply_to", "").strip("<>")
 
         if in_reply_to and in_reply_to in msg_dict:
             # This is a reply to another message
             parent = msg_dict[in_reply_to]
-            parent['children'].append(msg)
-            msg['level'] = parent['level'] + 1
-            msg['parent'] = parent
+            parent["children"].append(msg)
+            msg["level"] = parent["level"] + 1
+            msg["parent"] = parent
         else:
             # Check if this is a subject-based reply
-            subject = msg.get('subject', '').strip()
-            if subject.lower().startswith('re:'):
+            subject = msg.get("subject", "").strip()
+            if subject.lower().startswith("re:"):
                 # This looks like a reply, try to find parent by subject
-                normalized_subject = re.sub(r'^(Re|Fwd|Fw):\s*', '', subject, flags=re.IGNORECASE).strip()
+                normalized_subject = re.sub(
+                    r"^(Re|Fwd|Fw):\s*", "", subject, flags=re.IGNORECASE
+                ).strip()
                 if normalized_subject in subject_dict:
                     # Find the earliest message with this subject as potential parent
-                    potential_parents = [m for m in subject_dict[normalized_subject]
-                                       if not m.get('subject', '').lower().startswith('re:')]
+                    potential_parents = [
+                        m
+                        for m in subject_dict[normalized_subject]
+                        if not m.get("subject", "").lower().startswith("re:")
+                    ]
                     if potential_parents:
-                        parent = potential_parents[0]  # Take the first non-reply message
-                        parent['children'].append(msg)
-                        msg['level'] = parent['level'] + 1
-                        msg['parent'] = parent
+                        parent = potential_parents[
+                            0
+                        ]  # Take the first non-reply message
+                        parent["children"].append(msg)
+                        msg["level"] = parent["level"] + 1
+                        msg["parent"] = parent
                         continue
 
             # This is a root message (no parent found)
@@ -218,51 +167,62 @@ def build_thread_tree(messages):
 
         for msg in messages:
             result.append(msg)
-            if msg.get('children'):
-                flatten_tree(msg['children'], result)
+            if msg.get("children"):
+                flatten_tree(msg["children"], result)
 
         return result
+
     flattened_messages = flatten_tree(root_messages)
 
     # Set display_subject for each message first (while parent refs still exist)
     for msg in flattened_messages:
-        if not msg.get('parent'):
-            msg['display_subject'] = msg.get('subject', '')
+        if not msg.get("parent"):
+            msg["display_subject"] = msg.get("subject", "")
         else:
-            parent_subject = msg['parent'].get('subject', '').strip()
-            current_subject = msg.get('subject', '').strip()
+            parent_subject = msg["parent"].get("subject", "").strip()
+            current_subject = msg.get("subject", "").strip()
 
             # Remove Re:, Fwd:, etc. and normalize both
-            parent_normalized = re.sub(r'^(Re|Fwd|Fw):\s*', '', parent_subject, flags=re.IGNORECASE).strip()
-            current_normalized = re.sub(r'^(Re|Fwd|Fw):\s*', '', current_subject, flags=re.IGNORECASE).strip()
+            parent_normalized = re.sub(
+                r"^(Re|Fwd|Fw):\s*", "", parent_subject, flags=re.IGNORECASE
+            ).strip()
+            current_normalized = re.sub(
+                r"^(Re|Fwd|Fw):\s*", "", current_subject, flags=re.IGNORECASE
+            ).strip()
 
             # Hide if parent subject is a subset of current subject
             if parent_normalized and parent_normalized in current_normalized:
-                print(f"HIDING: Parent '{parent_normalized}' found in '{current_normalized}'")
-                msg['display_subject'] = ''
+                print(
+                    f"HIDING: Parent '{parent_normalized}' found in '{current_normalized}'"
+                )
+                msg["display_subject"] = ""
             else:
-                print(f"SHOWING: Parent '{parent_normalized}' NOT in '{current_normalized}'")
-                msg['display_subject'] = current_subject
+                print(
+                    f"SHOWING: Parent '{parent_normalized}' NOT in '{current_normalized}'"
+                )
+                msg["display_subject"] = current_subject
 
     # Clean up parent references to avoid circular reference in JSON serialization
     for msg in flattened_messages:
-        if 'parent' in msg:
-            del msg['parent']
+        if "parent" in msg:
+            del msg["parent"]
 
     return flattened_messages
 
-@app.route('/')
+
+@app.route("/")
 def index():
     """Simple info page since no homepage needed"""
-    return '''
+    return """
     <html><body>
     <h1>Git Mailing List Viewer</h1>
     <p>Access threads directly by message ID: <code>/{message_id}/</code></p>
     <p>Example: <code>/20231201120000.12345@example.com/</code></p>
     </body></html>
-    '''
+    """
 
-@app.route('/<path:message_id>/')
+
+@app.route("/<path:message_id>/")
 def view_message_by_id(message_id):
     """View message thread by Message-ID from lore.kernel.org"""
     # Check cache first
@@ -291,15 +251,21 @@ def view_message_by_id(message_id):
     # Find the specific message or show the first one
     target_message = None
     for msg in threaded_messages:
-        if message_id in msg.get('message_id', ''):
+        if message_id in msg.get("message_id", ""):
             target_message = msg
             break
 
     if not target_message:
         target_message = threaded_messages[0]
 
-    return render_template('thread.html', messages=threaded_messages, target_message=target_message, message_id=message_id)
+    return render_template(
+        "thread.html",
+        messages=threaded_messages,
+        target_message=target_message,
+        message_id=message_id,
+    )
 
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    app.run(debug=True, host='0.0.0.0', port=port)
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    app.run(debug=True, host="0.0.0.0", port=port)

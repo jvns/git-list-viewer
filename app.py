@@ -1,12 +1,9 @@
 #!/usr/bin/env python3
 
-import subprocess
 import re
 import email
-from email.header import decode_header
-from datetime import datetime
-import hashlib
-from flask import Flask, render_template, request, jsonify
+from datetime import datetime, timedelta
+from flask import Flask, render_template
 import os
 import requests
 import gzip
@@ -14,7 +11,6 @@ import mailbox
 from urllib.parse import quote
 import sqlite3
 import json
-from datetime import datetime, timedelta
 
 app = Flask(__name__)
 
@@ -87,122 +83,6 @@ def cache_thread(message_id, mbox_content, messages):
 # Initialize database on startup
 init_db()
 
-def get_git_log():
-    """Get recent commits from the git repository"""
-    cmd = ["git", "-C", REPO_PATH, "log", "--format=%H|%s|%an|%ae|%ad", "--date=iso", "-30"]
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    commits = []
-    
-    for line in result.stdout.strip().split('\n'):
-        if line:
-            parts = line.split('|', 4)
-            if len(parts) == 5:
-                commit_hash, subject, author_name, author_email, date = parts
-                commits.append({
-                    'hash': commit_hash,
-                    'subject': subject,
-                    'author_name': author_name,
-                    'author_email': author_email,
-                    'date': date,
-                    'thread_id': extract_thread_id(subject)
-                })
-    
-    return commits
-
-def extract_thread_id(subject):
-    """Extract thread ID from subject line"""
-    # Remove Re: and [PATCH] prefixes and use remaining text as thread ID
-    clean_subject = re.sub(r'^(Re:\s*)+', '', subject, flags=re.IGNORECASE)
-    clean_subject = re.sub(r'^\[PATCH[^\]]*\]\s*', '', clean_subject)
-    clean_subject = re.sub(r'^\[RFC[^\]]*\]\s*', '', clean_subject)
-    return hashlib.md5(clean_subject.encode()).hexdigest()[:8]
-
-def get_commit_content(commit_hash):
-    """Get the full content of a commit"""
-    cmd = ["git", "-C", REPO_PATH, "show", "--format=full", commit_hash]
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    return result.stdout
-
-def parse_email_content(content):
-    """Parse git commit content to extract email parts"""
-    lines = content.split('\n')
-    
-    # Find the start of the email content (after the git headers)
-    email_start = 0
-    for i, line in enumerate(lines):
-        if line.strip() == '' and i > 0:
-            email_start = i + 1
-            break
-    
-    email_content = '\n'.join(lines[email_start:])
-    
-    try:
-        msg = email.message_from_string(email_content)
-        
-        subject = msg.get('Subject', 'No Subject')
-        from_header = msg.get('From', 'Unknown')
-        date_header = msg.get('Date', '')
-        message_id = msg.get('Message-ID', '')
-        in_reply_to = msg.get('In-Reply-To', '')
-        
-        # Get body
-        if msg.is_multipart():
-            body = ''
-            for part in msg.walk():
-                if part.get_content_type() == 'text/plain':
-                    body += part.get_payload(decode=True).decode('utf-8', errors='ignore')
-        else:
-            body = msg.get_payload(decode=True)
-            if body:
-                body = body.decode('utf-8', errors='ignore')
-            else:
-                body = msg.get_payload()
-        
-        return {
-            'subject': subject,
-            'from': from_header,
-            'date': date_header,
-            'message_id': message_id,
-            'in_reply_to': in_reply_to,
-            'body': body
-        }
-    except Exception as e:
-        return {
-            'subject': 'Parse Error',
-            'from': 'Unknown',
-            'date': '',
-            'message_id': '',
-            'in_reply_to': '',
-            'body': f'Error parsing email: {str(e)}\n\nRaw content:\n{email_content}'
-        }
-
-def group_by_threads(commits):
-    """Group commits by thread"""
-    threads = {}
-    
-    for commit in commits:
-        thread_id = commit['thread_id']
-        if thread_id not in threads:
-            threads[thread_id] = []
-        threads[thread_id].append(commit)
-    
-    # Sort each thread by date
-    for thread_id in threads:
-        threads[thread_id].sort(key=lambda x: x['date'])
-    
-    return threads
-
-@app.route('/')
-def index():
-    commits = get_git_log()
-    threads = group_by_threads(commits)
-    
-    # Sort threads by latest message date
-    sorted_threads = sorted(threads.items(), 
-                          key=lambda x: max(commit['date'] for commit in x[1]), 
-                          reverse=True)
-    
-    return render_template('index.html', threads=sorted_threads)
 
 def download_mbox_thread(message_id):
     """Download mbox file for a thread from lore.kernel.org"""
@@ -388,11 +268,16 @@ def build_thread_tree(messages):
     
     return flattened_messages
 
-@app.route('/commit/<commit_hash>')
-def view_commit(commit_hash):
-    content = get_commit_content(commit_hash)
-    email_data = parse_email_content(content)
-    return jsonify(email_data)
+@app.route('/')
+def index():
+    """Simple info page since no homepage needed"""
+    return '''
+    <html><body>
+    <h1>Git Mailing List Viewer</h1>
+    <p>Access threads directly by message ID: <code>/{message_id}/</code></p>
+    <p>Example: <code>/20231201120000.12345@example.com/</code></p>
+    </body></html>
+    '''
 
 @app.route('/<path:message_id>/')
 def view_message_by_id(message_id):

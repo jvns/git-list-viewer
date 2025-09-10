@@ -1,19 +1,23 @@
 const messages = window.messagesData;
 let isScrollingProgrammatically = false;
 
-function showMessage(sanitizedId, element) {
-  // Remove previous selection
+function selectMessage(sanitizedId) {
+  window.location.hash = sanitizedId;
+  
   document.querySelectorAll('.message-item.selected').forEach(el => {
     el.classList.remove('selected');
   });
+  
+  const sidebarItem = document.getElementById('sidebar-' + sanitizedId);
+  if (sidebarItem) {
+    sidebarItem.classList.add('selected');
+    sidebarItem.scrollIntoView({ behavior: 'auto', block: 'nearest' });
+  }
+}
 
-  // Mark current as selected
-  element.classList.add('selected');
-
-  // Update URL hash with the sanitized ID
-  window.location.hash = sanitizedId;
-
-  // Scroll to the corresponding email in the main content
+function showMessage(sanitizedId, element) {
+  selectMessage(sanitizedId);
+  
   const emailElement = document.getElementById('msg-' + sanitizedId);
   if (emailElement) {
     emailElement.scrollIntoView({ behavior: 'auto', block: 'start' });
@@ -26,19 +30,8 @@ function setupMessageObserver() {
     for (const entry of entries) {
       if (entry.isIntersecting) {
         const sanitizedId = entry.target.id.replace('msg-', '');
-        window.location.hash = sanitizedId;
-        
-        // Update sidebar selection
-        document.querySelectorAll('.message-item.selected').forEach(el => {
-          el.classList.remove('selected');
-        });
-        
-        const sidebarItem = document.getElementById('sidebar-' + sanitizedId);
-        if (sidebarItem) {
-          sidebarItem.classList.add('selected');
-          sidebarItem.scrollIntoView({ behavior: 'auto', block: 'nearest' });
-        }
-        break; // Only handle the first intersecting element
+        selectMessage(sanitizedId);
+        break;
       }
     }
   }, {

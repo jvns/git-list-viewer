@@ -2,11 +2,9 @@ const messages = window.messagesData;
 
 function selectMessage(sanitizedId) {
   window.location.hash = sanitizedId;
-  
   document.querySelectorAll('.message-item.selected').forEach(el => {
     el.classList.remove('selected');
   });
-  
   const sidebarItem = document.getElementById('sidebar-' + sanitizedId);
   if (sidebarItem) {
     sidebarItem.classList.add('selected');

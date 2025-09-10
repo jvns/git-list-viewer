@@ -287,6 +287,7 @@ def build_thread_tree(messages):
             msg_dict[msg_id] = msg
             msg['children'] = []
             msg['level'] = 0
+            msg['parent'] = None
             
         # Also index by normalized subject for fallback threading
         subject = msg.get('subject', '').strip()
@@ -309,6 +310,7 @@ def build_thread_tree(messages):
             parent = msg_dict[in_reply_to]
             parent['children'].append(msg)
             msg['level'] = parent['level'] + 1
+            msg['parent'] = parent
         else:
             # Check if this is a subject-based reply
             subject = msg.get('subject', '').strip()
@@ -323,6 +325,7 @@ def build_thread_tree(messages):
                         parent = potential_parents[0]  # Take the first non-reply message
                         parent['children'].append(msg)
                         msg['level'] = parent['level'] + 1
+                        msg['parent'] = parent
                         continue
             
             # This is a root message (no parent found)
@@ -340,7 +343,50 @@ def build_thread_tree(messages):
         
         return result
     
-    return flatten_tree(root_messages)
+    # Add display_subject logic
+    def should_hide_subject(msg):
+        if not msg.get('parent'):
+            return False
+        
+        parent_subject = msg['parent'].get('subject', '').strip()
+        current_subject = msg.get('subject', '').strip()
+        
+        # Remove Re:, Fwd:, etc. and normalize both
+        parent_normalized = re.sub(r'^(Re|Fwd|Fw):\s*', '', parent_subject, flags=re.IGNORECASE).strip()
+        current_normalized = re.sub(r'^(Re|Fwd|Fw):\s*', '', current_subject, flags=re.IGNORECASE).strip()
+        
+        # Hide if parent subject is a subset of current subject
+        return parent_normalized and parent_normalized in current_normalized
+    
+    # Get the flattened result first
+    flattened_messages = flatten_tree(root_messages)
+    
+    # Set display_subject for each message first (while parent refs still exist)
+    for msg in flattened_messages:
+        if not msg.get('parent'):
+            msg['display_subject'] = msg.get('subject', '')
+        else:
+            parent_subject = msg['parent'].get('subject', '').strip()
+            current_subject = msg.get('subject', '').strip()
+            
+            # Remove Re:, Fwd:, etc. and normalize both
+            parent_normalized = re.sub(r'^(Re|Fwd|Fw):\s*', '', parent_subject, flags=re.IGNORECASE).strip()
+            current_normalized = re.sub(r'^(Re|Fwd|Fw):\s*', '', current_subject, flags=re.IGNORECASE).strip()
+            
+            # Hide if parent subject is a subset of current subject
+            if parent_normalized and parent_normalized in current_normalized:
+                print(f"HIDING: Parent '{parent_normalized}' found in '{current_normalized}'")
+                msg['display_subject'] = ''
+            else:
+                print(f"SHOWING: Parent '{parent_normalized}' NOT in '{current_normalized}'")
+                msg['display_subject'] = current_subject
+    
+    # Clean up parent references to avoid circular reference in JSON serialization
+    for msg in flattened_messages:
+        if 'parent' in msg:
+            del msg['parent']
+    
+    return flattened_messages
 
 @app.route('/commit/<commit_hash>')
 def view_commit(commit_hash):

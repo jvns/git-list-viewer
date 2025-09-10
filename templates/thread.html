@@ -25,15 +25,9 @@
                 <div class="message-item {% if loop.index0 == 0 %}selected{% endif %}"
                      onclick="showMessage('{{ message.message_id|sanitize_message_id }}')"
                      id="sidebar-{{ message.message_id|sanitize_message_id }}"
-                     style="padding-left: {{ 8 + (message.level or 0) * 12 }}px;">
-                    <div class="message-subject">
-                        {% if message.level and message.level > 0 %}
-                            <span style="color: #999;">{{ '└─ ' if message.level == 1 else '  ' * (message.level - 1) + '└─ ' }}</span>
-                        {% endif %}
-                        {{ message.subject[:80] }}{% if message.subject|length > 80 %}...{% endif %}
-                    </div>
-                    <div class="message-meta">
-                        {{ message.from.split('<')[0].strip() if '<' in message.from else message.from }} • {{ message.date[:10] if message.date else 'No date' }}
+">
+                    <div class="message-line">
+                        {{ (message.date[:10] + ' ' + message.date[11:16]) if message.date and message.date|length > 16 else '2000-01-01 00:00' }}&nbsp;&nbsp;{% if message.level and message.level > 0 %}{% for i in range(message.level) %}&nbsp;&nbsp;{% endfor %}<span style="color: #999;">└─&nbsp;</span>{% endif %}{% if message.display_subject %}{{ message.display_subject }}&nbsp;&nbsp;{% endif %}{{ (message.from.split('<')[0].strip() if '<' in message.from else message.from).strip('"') }}
                     </div>
                 </div>
                 {% endfor %}

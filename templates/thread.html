@@ -95,29 +95,28 @@
 
         .email-header {
             background: #79003c;
-            padding: 12px 20px;
+            padding: 8px 20px;
             border-bottom: 1px solid #ddd;
             color: white;
         }
 
         .email-subject {
-            font-size: 16px;
+            font-size: 14px;
             font-weight: bold;
             color: white;
-            margin-bottom: 6px;
             word-wrap: break-word;
+            margin-bottom: 3px;
         }
 
         .email-meta {
-            color: rgba(255, 255, 255, 0.9);
-            font-size: 12px;
-            line-height: 1.4;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 11px;
         }
 
-        .email-meta strong {
+        .author-name {
             color: white;
-            display: inline-block;
-            width: 60px;
+            font-weight: bold;
+            font-size: 12px;
         }
 
         .email-body {
@@ -176,8 +175,7 @@
                 <div class="email-header">
                     <div class="email-subject">{{ message.subject }}</div>
                     <div class="email-meta">
-                        <div><strong>From:</strong> {{ message.from }}</div>
-                        <div><strong>Date:</strong> {{ message.date }}</div>
+                        <span class="author-name">{{ message.from.split('<')[0].strip() if '<' in message.from else message.from }}</span> &nbsp;&nbsp; {{ message.date[:16] if message.date else 'No date' }}
                     </div>
                 </div>
                 <div class="email-body">{{ message.body }}</div>

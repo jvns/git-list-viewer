@@ -24,7 +24,8 @@
                 {% for message in messages %}
                 <div class="message-item {% if loop.index0 == 0 %}selected{% endif %}"
                      onclick="showMessage('{{ message.message_id }}', this)"
-                     id="msg-{{ message.message_id|replace('<', '')|replace('>', '')|replace('@', '_at_')|replace('.', '_') }}"
+                     id="msg-{{ message.message_id|sanitize_message_id }}"
+                     data-sanitized-id="{{ message.message_id|sanitize_message_id }}"
                      style="padding-left: {{ 8 + (message.level or 0) * 12 }}px;">
                     <div class="message-subject">
                         {% if message.level and message.level > 0 %}
@@ -42,7 +43,7 @@
 
         <div class="main-content" id="main-content">
             {% for message in messages %}
-            <div class="email-message" id="email-{{ message.message_id|replace('<', '')|replace('>', '')|replace('@', '_at_')|replace('.', '_') }}">
+            <div class="email-message" id="email-{{ message.message_id|sanitize_message_id }}" data-message-id="{{ message.message_id }}">
                 <div class="email-header">
                     <div class="email-subject">{{ message.subject }}</div>
                     <div class="email-meta">

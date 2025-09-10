@@ -18,6 +18,13 @@ from datetime import datetime, timedelta
 
 app = Flask(__name__)
 
+def sanitize_message_id(message_id):
+    """Sanitize message ID for use in HTML element IDs"""
+    return message_id.replace('<', '').replace('>', '').replace('@', '_at_').replace('.', '_')
+
+# Register the function as a template filter
+app.jinja_env.filters['sanitize_message_id'] = sanitize_message_id
+
 def init_db():
     """Initialize SQLite database for caching"""
     conn = sqlite3.connect('mbox_cache.db')

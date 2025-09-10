@@ -1,10 +1,6 @@
 const messages = window.messagesData;
 let isScrollingProgrammatically = false;
 
-function sanitizeMessageId(messageId) {
-  return messageId.replace(/[<>]/g, '').replace(/@/g, '_at_').replace(/\./g, '_');
-}
-
 function showMessage(messageId, element) {
   // Remove previous selection
   document.querySelectorAll('.message-item.selected').forEach(el => {
@@ -18,7 +14,7 @@ function showMessage(messageId, element) {
   window.location.hash = encodeURIComponent(messageId);
 
   // Scroll to the corresponding email in the main content
-  const sanitizedId = sanitizeMessageId(messageId);
+  const sanitizedId = element.dataset.sanitizedId;
   const emailElement = document.getElementById('email-' + sanitizedId);
   if (emailElement) {
     emailElement.scrollIntoView({ behavior: 'auto', block: 'start' });
@@ -27,28 +23,24 @@ function showMessage(messageId, element) {
 
 // Track scroll position and highlight current message in sidebar
 function updateCurrentMessage() {
-
   const mainContent = document.getElementById('main-content');
   let currentMessageId = null;
+  let currentSanitizedId = null;
 
   // Find which email is currently most visible
-  for (let i = 0; i < messages.length; i++) {
-    const message = messages[i];
-    const sanitizedId = sanitizeMessageId(message.message_id);
-    const emailElement = document.getElementById('email-' + sanitizedId);
+  const emailElements = document.querySelectorAll('.email-message');
+  for (const emailElement of emailElements) {
+    const rect = emailElement.getBoundingClientRect();
+    const mainContentRect = mainContent.getBoundingClientRect();
 
-    if (emailElement) {
-      const rect = emailElement.getBoundingClientRect();
-      const mainContentRect = mainContent.getBoundingClientRect();
-
-      // Check if email is in view
-      if (rect.top <= mainContentRect.top + 100) {
-        currentMessageId = message.message_id;
-      }
+    // Check if email is in view
+    if (rect.top <= mainContentRect.top + 100) {
+      currentMessageId = emailElement.dataset.messageId;
+      currentSanitizedId = emailElement.id.replace('email-', '');
     }
   }
 
-  if (currentMessageId) {
+  if (currentMessageId && currentSanitizedId) {
     // Update URL hash
     window.location.hash = encodeURIComponent(currentMessageId);
 
@@ -57,8 +49,7 @@ function updateCurrentMessage() {
       el.classList.remove('selected');
     });
 
-    const sanitizedId = sanitizeMessageId(currentMessageId);
-    const currentItem = document.getElementById('msg-' + sanitizedId);
+    const currentItem = document.getElementById('msg-' + currentSanitizedId);
     if (currentItem) {
       currentItem.classList.add('selected');
       // Scroll the sidebar item into view
@@ -75,23 +66,13 @@ function handleInitialHash() {
   const hash = window.location.hash;
   if (hash) {
     const messageId = decodeURIComponent(hash.substring(1));
-
-    // Find message with matching ID
-    const message = messages.find(m => m.message_id === messageId);
-    if (message) {
-      const sanitizedId = sanitizeMessageId(messageId);
-      const sidebarItem = document.getElementById('msg-' + sanitizedId);
-      const emailElement = document.getElementById('email-' + sanitizedId);
-
-      if (sidebarItem && emailElement) {
-        // Select sidebar item
-        document.querySelectorAll('.message-item.selected').forEach(el => {
-          el.classList.remove('selected');
-        });
-        sidebarItem.classList.add('selected');
-
-        // Scroll to email
-        emailElement.scrollIntoView({ behavior: 'auto', block: 'start' });
+    
+    // Find sidebar item by looking for matching data-sanitized-id
+    const sidebarItems = document.querySelectorAll('.message-item');
+    for (const item of sidebarItems) {
+      const itemMessageId = item.onclick.toString().match(/'([^']+)'/)?.[1];
+      if (itemMessageId === messageId) {
+        item.click();
         return;
       }
     }

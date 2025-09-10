@@ -7,19 +7,9 @@ from thread_tree import build_thread_tree
 
 app = Flask(__name__)
 
-
-def sanitize_message_id(message_id):
-    """Sanitize message ID for use in HTML element IDs"""
-    return (
-        message_id.replace("<", "")
-        .replace(">", "")
-        .replace("@", "_at_")
-        .replace(".", "_")
-    )
-
-
-# Register the function as a template filter
-app.jinja_env.filters["sanitize_message_id"] = sanitize_message_id
+app.jinja_env.filters["sanitize_message_id"] = (
+    lambda x: x.replace("<", "").replace(">", "").replace("@", "_at_").replace(".", "_")
+)
 
 
 @app.route("/")

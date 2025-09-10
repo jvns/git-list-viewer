@@ -242,21 +242,9 @@ def view_message_by_id(message_id):
     # Build threaded structure
     threaded_messages = build_thread_tree(messages)
 
-    # Find the specific message or show the first one
-    target_message = None
-    for msg in threaded_messages:
-        if message_id in msg.get("message_id", ""):
-            target_message = msg
-            break
-
-    if not target_message:
-        target_message = threaded_messages[0]
-
     return render_template(
         "thread.html",
         messages=threaded_messages,
-        target_message=target_message,
-        message_id=message_id,
     )
 
 

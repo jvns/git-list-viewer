@@ -78,7 +78,7 @@ def link_replies_by_subject(root_messages, subject_dict):
 
     for msg in root_messages:
         subject = msg.get("subject", "").strip()
-        
+
         if subject.lower().startswith("re:"):
             normalized_subject = normalize_subject(subject)
             if normalized_subject in subject_dict:
@@ -113,14 +113,12 @@ def set_display_subjects(messages):
         if not msg.get("parent"):
             msg["display_subject"] = msg.get("subject", "")
         else:
-            parent_subject = msg["parent"].get("subject", "").strip()
-            current_subject = msg.get("subject", "").strip()
-
-            parent_normalized = normalize_subject(parent_subject)
+            current_subject = msg.get('subject')
+            parent_normalized = normalize_subject(msg['parent'].get('subject'))
             current_normalized = normalize_subject(current_subject)
 
             # Hide if parent subject is subset of current subject
-            if parent_normalized and parent_normalized in current_normalized:
+            if parent_normalized in current_normalized:
                 msg["display_subject"] = ""
             else:
                 msg["display_subject"] = current_subject

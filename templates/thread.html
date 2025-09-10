@@ -23,7 +23,7 @@
             <div class="thread-list">
                 {% for message in messages %}
                 <div class="message-item {% if loop.index0 == 0 %}selected{% endif %}"
-                     onclick="showMessage('{{ message.message_id|sanitize_message_id }}', this)"
+                     onclick="showMessage('{{ message.message_id|sanitize_message_id }}')"
                      id="sidebar-{{ message.message_id|sanitize_message_id }}"
                      style="padding-left: {{ 8 + (message.level or 0) * 12 }}px;">
                     <div class="message-subject">

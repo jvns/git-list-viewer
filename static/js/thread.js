@@ -1,5 +1,4 @@
 const messages = window.messagesData;
-let isScrollingProgrammatically = false;
 
 function selectMessage(sanitizedId) {
   window.location.hash = sanitizedId;
@@ -15,13 +14,9 @@ function selectMessage(sanitizedId) {
   }
 }
 
-function showMessage(sanitizedId, element) {
+function showMessage(sanitizedId) {
   selectMessage(sanitizedId);
-  
-  const emailElement = document.getElementById('msg-' + sanitizedId);
-  if (emailElement) {
-    emailElement.scrollIntoView({ behavior: 'auto', block: 'start' });
-  }
+  document.getElementById('msg-' + sanitizedId)?.scrollIntoView({ behavior: 'auto', block: 'start' });
 }
 
 // Set up intersection observer to track visible messages
@@ -47,15 +42,8 @@ function setupMessageObserver() {
 function handleInitialHash() {
   const hash = window.location.hash;
   if (hash) {
-    const sanitizedId = hash.substring(1);
-    const sidebarItem = document.getElementById('sidebar-' + sanitizedId);
-    if (sidebarItem) {
-      sidebarItem.click();
-      return;
-    }
+    document.getElementById('sidebar-' + hash.substring(1))?.click();
   }
-  // Default to first message if no valid hash
-  updateCurrentMessage();
 }
 
 // Keyboard navigation

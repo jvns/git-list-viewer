@@ -1,0 +1,115 @@
+#!/usr/bin/env python3
+
+import re
+
+
+def normalize_subject(subject):
+    """Remove Re:, Fwd:, etc. and normalize subject"""
+    return re.sub(r"^(Re|Fwd|Fw):\s*", "", subject, flags=re.IGNORECASE).strip()
+
+
+def attach_to_parent(msg, parent):
+    """Attach a message as a child of another message"""
+    parent["children"].append(msg)
+    msg["level"] = parent["level"] + 1
+    msg["parent"] = parent
+
+
+def build_message_indexes(messages):
+    """Build lookup dictionaries for messages by ID and subject"""
+    msg_dict = {}
+    subject_dict = {}
+
+    for msg in messages:
+        msg_id = msg.get("message_id", "").strip("<>")
+        if msg_id:
+            msg_dict[msg_id] = msg
+            msg["children"] = []
+            msg["level"] = 0
+            msg["parent"] = None
+
+        # Index by normalized subject for fallback threading
+        subject = msg.get("subject", "").strip()
+        normalized_subject = normalize_subject(subject)
+        if normalized_subject:
+            if normalized_subject not in subject_dict:
+                subject_dict[normalized_subject] = []
+            subject_dict[normalized_subject].append(msg)
+
+    return msg_dict, subject_dict
+
+
+def link_replies_by_headers(messages, msg_dict):
+    """Link replies using In-Reply-To headers"""
+    root_messages = []
+
+    for msg in messages:
+        in_reply_to = msg.get("in_reply_to", "").strip("<>")
+
+        if in_reply_to and in_reply_to in msg_dict:
+            attach_to_parent(msg, msg_dict[in_reply_to])
+        else:
+            root_messages.append(msg)
+
+    return root_messages
+
+
+def link_replies_by_subject(root_messages, subject_dict):
+    """Try to link remaining root messages by subject"""
+    final_roots = []
+
+    for msg in root_messages:
+        subject = msg.get("subject", "").strip()
+
+        if subject.lower().startswith("re:"):
+            normalized_subject = normalize_subject(subject)
+            if normalized_subject in subject_dict:
+                # Find potential parents (non-reply messages)
+                potential_parents = [
+                    m
+                    for m in subject_dict[normalized_subject]
+                    if not m.get("subject", "").lower().startswith("re:")
+                ]
+                if potential_parents:
+                    attach_to_parent(msg, potential_parents[0])
+                    continue
+
+        final_roots.append(msg)
+
+    return final_roots
+
+
+def flatten_tree(messages):
+    """Flatten tree structure while preserving hierarchy"""
+    for msg in messages:
+        yield msg
+        if msg.get("children"):
+            yield from flatten_tree(msg["children"])
+
+
+def display_subject(msg):
+    if not msg.get("parent"):
+        return msg.get("subject")
+
+    current_subject = msg.get("subject")
+    parent_normalized = normalize_subject(msg["parent"].get("subject"))
+    current_normalized = normalize_subject(current_subject)
+
+    # Hide if parent subject is subset of current subject
+    if parent_normalized in current_normalized:
+        return ""
+    else:
+        return current_subject
+
+
+def build_thread_tree(messages):
+    """Build nested thread structure from email messages"""
+    msg_dict, subject_dict = build_message_indexes(messages)
+    root_messages = link_replies_by_headers(messages, msg_dict)
+    root_messages = link_replies_by_subject(root_messages, subject_dict)
+    flattened_messages = list(flatten_tree(root_messages))
+    for msg in flattened_messages:
+        msg["display_subject"] = display_subject(msg)
+        if "parent" in msg:
+            del msg["parent"]
+    return flattened_messages

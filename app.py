@@ -14,14 +14,7 @@ app.jinja_env.filters["sanitize_message_id"] = (
 
 @app.route("/")
 def index():
-    """Simple info page since no homepage needed"""
-    return """
-    <html><body>
-    <h1>Git Mailing List Viewer</h1>
-    <p>Access threads directly by message ID: <code>/{message_id}/</code></p>
-    <p>Example: <code>/20231201120000.12345@example.com/</code></p>
-    </body></html>
-    """
+    return render_template("index.html")
 
 
 @app.route("/<path:message_id>/")

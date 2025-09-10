@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ target_message.subject }} - Git Mailing List Thread</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+
+        .sidebar {
+            width: 400px;
+            background: white;
+            border-right: 1px solid #ddd;
+            overflow-y: auto;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+        }
+
+        .main-content {
+            flex: 1;
+            background: white;
+            overflow-y: auto;
+        }
+
+        .header {
+            background: #343a40;
+            color: white;
+            padding: 20px;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 18px;
+        }
+
+        .header a {
+            color: #88c0ff;
+            text-decoration: none;
+        }
+
+        .thread-list {
+            padding: 0;
+        }
+
+        .message-item {
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .message-item:hover {
+            background: #f8f9fa;
+        }
+
+        .message-item.selected {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+        }
+
+        .message-subject {
+            font-weight: 500;
+            color: #333;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+
+        .message-meta {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .email-content {
+            padding: 0;
+        }
+
+        .email-header {
+            background: #f8f9fa;
+            padding: 30px;
+            border-bottom: 1px solid #ddd;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .email-subject {
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 15px;
+            word-wrap: break-word;
+        }
+
+        .email-meta {
+            color: #666;
+            font-size: 14px;
+            line-height: 1.8;
+        }
+
+        .email-meta strong {
+            color: #333;
+            display: inline-block;
+            width: 120px;
+        }
+
+        .email-body {
+            padding: 30px;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            color: #333;
+            word-wrap: break-word;
+        }
+
+        .thread-info {
+            background: #e9ecef;
+            padding: 15px;
+            border-bottom: 1px solid #ddd;
+            font-size: 14px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <div class="header">
+                <h1>Thread Messages</h1>
+                <p><a href="/">← Back to main</a></p>
+            </div>
+
+            <div class="thread-info">
+                {{ messages|length }} message{% if messages|length != 1 %}s{% endif %} in thread
+            </div>
+
+            <div class="thread-list">
+                {% for message in messages %}
+                <div class="message-item {% if loop.index0 == 0 %}selected{% endif %}"
+                     onclick="showMessage({{ loop.index0 }}, this)"
+                     id="msg-{{ loop.index0 }}">
+                    <div class="message-subject">{{ message.subject[:80] }}{% if message.subject|length > 80 %}...{% endif %}</div>
+                    <div class="message-meta">
+                        {{ message.from.split('<')[0].strip() if '<' in message.from else message.from }}<br>
+                        {{ message.date[:16] if message.date else 'No date' }}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="main-content" id="main-content">
+            <div class="email-content">
+                <div class="email-header">
+                    <div class="email-subject">{{ target_message.subject }}</div>
+                    <div class="email-meta">
+                        <div><strong>From:</strong> {{ target_message.from }}</div>
+                        <div><strong>Date:</strong> {{ target_message.date }}</div>
+                    </div>
+                </div>
+                <div class="email-body">{{ target_message.body }}</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const messages = {{ messages | tojson }};
+
+        function showMessage(index, element) {
+            // Remove previous selection
+            document.querySelectorAll('.message-item.selected').forEach(el => {
+                el.classList.remove('selected');
+            });
+
+            // Mark current as selected
+            element.classList.add('selected');
+
+            const message = messages[index];
+
+            const html = `
+                <div class="email-content">
+                    <div class="email-header">
+                        <div class="email-subject">${escapeHtml(message.subject)}</div>
+                        <div class="email-meta">
+                            <div><strong>From:</strong> ${escapeHtml(message.from)}</div>
+                            <div><strong>Date:</strong> ${escapeHtml(message.date)}</div>
+                            ${message.message_id ? '<div><strong>Message-ID:</strong> ' + escapeHtml(message.message_id) + '</div>' : ''}
+                            ${message.in_reply_to ? '<div><strong>In-Reply-To:</strong> ' + escapeHtml(message.in_reply_to) + '</div>' : ''}
+                            ${message.references ? '<div><strong>References:</strong> ' + escapeHtml(message.references.substring(0, 100)) + (message.references.length > 100 ? '...' : '') + '</div>' : ''}
+                        </div>
+                    </div>
+                    <div class="email-body">${escapeHtml(message.body)}</div>
+                </div>
+            `;
+
+            document.getElementById('main-content').innerHTML = html;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>

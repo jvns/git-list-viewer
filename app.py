@@ -2,7 +2,7 @@
 
 import os
 from flask import Flask, render_template
-from mbox_handler import get_thread_messages
+from mbox_handler import get_thread_messages, get_all_cached_threads
 from thread_tree import build_thread_tree
 
 app = Flask(__name__)
@@ -14,7 +14,8 @@ app.jinja_env.filters["sanitize_message_id"] = (
 
 @app.route("/")
 def index():
-    return render_template("index.html")
+    cached_threads = get_all_cached_threads()
+    return render_template("index.html", cached_threads=cached_threads)
 
 
 @app.route("/<path:message_id>/")

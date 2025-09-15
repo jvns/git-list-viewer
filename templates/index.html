@@ -1,25 +1,55 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Git Mailing List Viewer</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Git Mailing List Viewer</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
+
 <body>
-    <div class="container">
-        <div class="main-content">
-            <div class="header">
-                <h1>Git Mailing List Viewer</h1>
+  <div class="container">
+    <div class="main-content">
+      <div class="header">
+        <h1>Git Mailing List Viewer</h1>
+      </div>
+      <div style="padding: 30px;">
+        {% if cached_threads %}
+        <div style="margin-top: 40px;">
+          <h2>Cached Threads</h2>
+          <div style="margin-top: 20px;">
+            {% for thread in cached_threads %}
+            <div
+              style="border: 1px solid #ddd; border-radius: 5px; padding: 15px; margin-bottom: 10px; background: #fafafa;">
+              <div style="margin-bottom: 8px;">
+                <a href="/{{ thread.message_id }}/" style="text-decoration: none; color: #0366d6; font-weight: bold;">
+                  {{ thread.subject }}
+                </a>
+              </div>
+              <div style="font-size: 0.9em; color: #666; margin-bottom: 5px;">
+                <strong>From:</strong> {{ thread.from }}
+              </div>
+              <div style="font-size: 0.9em; color: #666; margin-bottom: 5px;">
+                <strong>Date:</strong> {{ thread.date }}
+              </div>
+              <div style="font-size: 0.9em; color: #666;">
+                <strong>Messages:</strong> {{ thread.message_count }} |
+                <strong>Cached:</strong> {{ thread.cached_at }}
+              </div>
             </div>
-            <div style="padding: 30px;">
-                <p>Access threads directly by message ID:</p>
-                <code style="background: #f5f5f5; padding: 5px 10px; border-radius: 3px;">/{message_id}/</code>
-                
-                <p style="margin-top: 30px;">Example:</p>
-                <code style="background: #f5f5f5; padding: 5px 10px; border-radius: 3px;">/20231201120000.12345@example.com/</code>
-            </div>
+            {% endfor %}
+          </div>
         </div>
+        {% else %}
+        <div style="margin-top: 40px;">
+          <h2>Cached Threads</h2>
+          <p style="color: #666; font-style: italic;">No threads cached yet. Visit a thread to cache it.</p>
+        </div>
+        {% endif %}
+      </div>
     </div>
+  </div>
 </body>
+
 </html>

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
 import os
-from flask import Flask, render_template
-from mbox_handler import get_thread_messages, get_all_cached_threads
+from flask import Flask, render_template, redirect, url_for
+from mbox_handler import get_thread_messages, get_all_cached_threads, force_refresh_thread
 from thread_tree import build_thread_tree
 
 app = Flask(__name__)
@@ -16,6 +16,13 @@ app.jinja_env.filters["sanitize_message_id"] = (
 def index():
     cached_threads = get_all_cached_threads()
     return render_template("index.html", cached_threads=cached_threads)
+
+
+@app.route("/refresh/<path:message_id>/")
+def force_refresh(message_id):
+    """Force refresh a specific thread"""
+    force_refresh_thread(message_id)
+    return redirect(url_for('view_message_by_id', message_id=message_id))
 
 
 @app.route("/<path:message_id>/")

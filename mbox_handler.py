@@ -177,6 +177,27 @@ def get_all_cached_threads():
     return threads
 
 
+def force_refresh_thread(message_id):
+    """Force refresh a thread by downloading fresh data and updating cache"""
+    init_db()
+
+    # Download fresh data
+    mbox_content = download_mbox_thread(message_id)
+
+    if not mbox_content:
+        return None
+
+    messages = parse_mbox_content(mbox_content)
+
+    if not messages:
+        return None
+
+    # Update cache with fresh data
+    cache_thread(message_id, mbox_content, messages)
+
+    return messages
+
+
 def get_thread_messages(message_id):
     """Get thread messages, using cache if available or downloading if needed"""
     # Initialize database if needed

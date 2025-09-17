@@ -22,9 +22,14 @@
             {% for thread in cached_threads %}
             <div
               style="border: 1px solid #ddd; border-radius: 5px; padding: 15px; margin-bottom: 10px; background: #fafafa;">
-              <div style="margin-bottom: 8px;">
-                <a href="/{{ thread.message_id }}/" style="text-decoration: none; color: #0366d6; font-weight: bold;">
+              <div style="margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+                <a href="/{{ thread.message_id }}/" style="text-decoration: none; color: #0366d6; font-weight: bold; flex: 1;">
                   {{ thread.subject }}
+                </a>
+                <a href="/refresh/{{ thread.message_id }}/"
+                   style="margin-left: 10px; padding: 4px 8px; background: #f1f8ff; border: 1px solid #c8e1ff; border-radius: 3px; color: #0969da; text-decoration: none; font-size: 0.8em;"
+                   title="Force refresh this thread">
+                  ↻ Refresh
                 </a>
               </div>
               <div style="font-size: 0.9em; color: #666; margin-bottom: 5px;">

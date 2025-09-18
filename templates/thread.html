@@ -17,7 +17,7 @@
       {{ messages|length }} message{% if messages|length != 1 %}s{% endif %} in thread
     </div>
 
-    <ul class="thread-list">
+    <ul>
       {% for message in messages %}
       <li class="message-item {% if loop.index0 == 0 %}selected{% endif %}"
         onclick="showMessage('{{ message.sanitized_message_id }}')" id="sidebar-{{ message.sanitized_message_id }}">

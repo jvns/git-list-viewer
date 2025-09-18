@@ -31,13 +31,13 @@ class EmailMessage:
 
     @property
     def from_name(self) -> str:
-        from_header = str(self._email.get("From", ""))
+        from_header = str(self._email.get("From"))
         name, _ = email.utils.parseaddr(from_header)
         return name
 
     @property
     def from_addr(self) -> str:
-        from_header = str(self._email.get("From", ""))
+        from_header = str(self._email.get("From"))
         _, addr = email.utils.parseaddr(from_header)
         return addr
 

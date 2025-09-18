@@ -23,22 +23,6 @@ main {
     overflow-y: auto;
 }
 
-.header {
-    background: #343a40;
-    color: white;
-    padding: 12px;
-}
-
-.header h1 {
-    margin: 0;
-    font-size: 14px;
-}
-
-.header a {
-    color: #88c0ff;
-    text-decoration: none;
-}
-
 .thread-list {
     padding: 0;
 }

@@ -71,18 +71,12 @@ class EmailMessage:
 
 
 class EmailIndex:
-    def __init__(self, db_path: str, git_repo_path: str = None):
+    def __init__(self, db_path: str, git_repo_path):
         self.db_path = Path(db_path)
         self.conn = sqlite3.connect(str(self.db_path))
         self.conn.row_factory = sqlite3.Row
         self._create_tables()
-
-        self.repo = None
-        if git_repo_path:
-            try:
-                self.repo = pygit2.Repository(git_repo_path)
-            except:
-                pass
+        self.repo = pygit2.Repository(git_repo_path)
 
     def _calculate_root_message_id(self, msg: EmailMessage, msg_root_mapping: Dict[str, str]) -> str:
         if not msg.references:
@@ -91,7 +85,7 @@ class EmailIndex:
             first_ref = msg.references[0]
             if first_ref in msg_root_mapping:
                 return msg_root_mapping[first_ref]
-        raise Exception("oop")
+            return first_ref
 
     def _create_tables(self):
         self.conn.execute(
@@ -110,12 +104,10 @@ class EmailIndex:
 
         self.conn.commit()
 
-    def index_git_repo(self, repo_path: str, branch: str = "refs/heads/master"):
-        repo = pygit2.Repository(repo_path)
+    def index_git_repo(self, branch: str = "refs/heads/master"):
 
-        # Collect all commits first for reverse topological order
-        commit = repo.references[branch].peel(pygit2.Commit)
-        commits = list(repo.walk(commit.id, pygit2.GIT_SORT_TOPOLOGICAL | pygit2.GIT_SORT_REVERSE))
+        commit = self.repo.references[branch].peel(pygit2.Commit)
+        commits = list(self.repo.walk(commit.id, pygit2.GIT_SORT_TOPOLOGICAL | pygit2.GIT_SORT_REVERSE))
 
         # Dictionary to track message_id -> root_message_id mappings
         msg_root_mapping = {}
@@ -124,20 +116,20 @@ class EmailIndex:
         for commit in commits:
             for entry in commit.tree:
                 if entry.type == pygit2.GIT_OBJECT_BLOB:
-                    blob = repo[entry.id]
-                    self._add_message_to_db(blob, str(entry.id), msg_root_mapping, repo)
+                    blob = self.repo[entry.id]
+                    self._add_message_to_db(blob, str(entry.id), msg_root_mapping)
                     count += 1
                     if count % 100 == 0:
                         logger.info(f"Indexed {count} messages...")
 
         self.conn.commit()
 
-    def _add_message_to_db(self, blob, git_oid, msg_root_mapping, repo):
+    def _add_message_to_db(self, blob, git_oid, msg_root_mapping):
         raw_email = blob.data
         if not (b"Message-ID:" in raw_email or b"From:" in raw_email):
             return
 
-        msg = EmailMessage.from_oid(git_oid, repo)
+        msg = EmailMessage.from_oid(git_oid, self.repo)
         if not msg.message_id:
             return
 
@@ -173,9 +165,6 @@ class EmailIndex:
             (target_message_id,),
         ).fetchall()
 
-        if not self.repo:
-            return []
-
         email_objects = [EmailMessage.from_oid(msg["git_oid"], self.repo) for msg in messages]
         return thread(email_objects)
 
@@ -193,8 +182,8 @@ def main():
 
     args = parser.parse_args()
 
-    with EmailIndex(args.db) as index:
-        index.index_git_repo(args.git_repo)
+    with EmailIndex(args.db, args.git_repo) as index:
+        index.index_git_repo()
 
 
 if __name__ == "__main__":

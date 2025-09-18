@@ -180,27 +180,17 @@ class EmailIndex:
         )
 
     def find_thread(self, target_message_id: str, git_repo_path: str = None):
-        # First, find the root_message_id for the target message
-        root_cursor = self.conn.execute(
-            "SELECT root_message_id FROM messages WHERE message_id = ?",
-            (target_message_id,)
-        )
-        root_result = root_cursor.fetchone()
-
-        if not root_result:
-            return []
-
-        root_message_id = root_result['root_message_id']
-
-        # Find all messages with the same root_message_id
+        # Find all messages with the same root_message_id as the target message
         cursor = self.conn.execute(
             """
             SELECT message_id, subject, from_name, from_addr, date_sent, git_oid
             FROM messages
-            WHERE root_message_id = ?
+            WHERE root_message_id = (
+                SELECT root_message_id FROM messages WHERE message_id = ?
+            )
             ORDER BY date_sent
         """,
-            (root_message_id,),
+            (target_message_id,),
         )
 
         messages = cursor.fetchall()

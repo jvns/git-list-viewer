@@ -95,24 +95,11 @@ class EmailMessage:
         if self._git_repo and self._git_oid:
             blob = self._git_repo[self._git_oid]
             eml = email.message_from_bytes(blob.data)
-
-            if eml.is_multipart():
-                body = ""
-                for part in eml.walk():
-                    if part.get_content_type() == "text/plain":
-                        try:
-                            body += part.get_payload(decode=True).decode("utf-8", errors="ignore")
-                        except:
-                            body += str(part.get_payload())
+            payload = eml.get_payload(decode=True)
+            if payload:
+                body = payload.decode("utf-8", errors="ignore")
             else:
-                try:
-                    payload = eml.get_payload(decode=True)
-                    if payload:
-                        body = payload.decode("utf-8", errors="ignore")
-                    else:
-                        body = str(eml.get_payload())
-                except:
-                    body = str(eml.get_payload())
+                body = str(eml.get_payload())
 
             return body
         return ""

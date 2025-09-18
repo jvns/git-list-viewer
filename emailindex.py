@@ -65,10 +65,6 @@ class EmailMessage:
         return datetime.fromtimestamp(timestamp)
 
     @property
-    def date_iso(self) -> str:
-        return self.date.isoformat()
-
-    @property
     def body(self) -> str:
         payload = self._email.get_payload(decode=True)
         if payload:

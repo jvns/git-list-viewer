@@ -27,7 +27,7 @@
         <div class="message-item {% if loop.index0 == 0 %}selected{% endif %}"
           onclick="showMessage('{{ message.sanitized_message_id }}')" id="sidebar-{{ message.sanitized_message_id }}" ">
                     <div class=" message-line">
-          {{ (message.date_iso[:10] + ' ' + message.date_iso[11:16]) }}&nbsp;&nbsp;{% if message.level and message.level
+          {{ message.date.strftime('%Y-%m-%d %H:%M') }}&nbsp;&nbsp;{% if message.level and message.level
           > 0 %}{% for i in range(message.level) %}&nbsp;&nbsp;{% endfor %}<span style="color: #999;">└─&nbsp;</span>{%
           endif %}{% if message.display_subject %}{{ message.display_subject }}&nbsp;&nbsp;{% endif %}{{
           message.from_name }}
@@ -43,7 +43,7 @@
       <div class="email-header">
         <div class="email-subject">{{ message.subject }}</div>
         <div class="email-meta">
-          <span class="author-name">{{ message.from_name }}</span> &nbsp;&nbsp; {{ message.date_iso[:16] }}
+          <span class="author-name">{{ message.from_name }}</span> &nbsp;&nbsp; {{ message.date.strftime('%Y-%m-%d %H:%M') }}
         </div>
       </div>
       <div class="email-body">{{ message.body }}</div>

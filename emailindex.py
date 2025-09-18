@@ -179,9 +179,8 @@ class EmailIndex:
             ),
         )
 
-    def find_thread(self, target_message_id: str, git_repo_path: str = None):
-        # Find all messages with the same root_message_id as the target message
-        cursor = self.conn.execute(
+    def find_thread(self, target_message_id: str, git_repo_path):
+        messages = self.conn.execute(
             """
             SELECT message_id, subject, from_name, from_addr, date_sent, git_oid
             FROM messages
@@ -191,18 +190,9 @@ class EmailIndex:
             ORDER BY date_sent
         """,
             (target_message_id,),
-        )
+        ).fetchall()
 
-        messages = cursor.fetchall()
-
-        # Load git repo if path provided
-        repo = None
-        if git_repo_path:
-            try:
-                repo = pygit2.Repository(git_repo_path)
-            except:
-                pass
-
+        repo = pygit2.Repository(git_repo_path)
         email_objects = [EmailMessage.from_oid(msg["git_oid"], repo) for msg in messages]
         return thread(email_objects)
 

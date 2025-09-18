@@ -140,27 +140,12 @@ def _build_subject_table(root_set: List[Container]) -> Dict[str, Container]:
     return subject_table
 
 
-def _default_sort(containers: List[Container]):
-    """Default sort function - sort by date"""
+def _sort_all_children(containers):
+    """Recursively sort all children in container tree by date"""
     containers.sort(key=lambda c: c.message.date if c.message and c.message.date else 0)
-
-
-def _sort_all_children(containers: List[Container], sort_func: Callable):
-    """Recursively sort all children in container tree"""
-    sort_func(containers)
     for container in containers:
         if container.children:
-            _sort_all_children(container.children, sort_func)
-
-
-def extract_message_ids(header_value: str) -> List[str]:
-    """Extract message IDs from References or In-Reply-To header"""
-    if not header_value:
-        return []
-
-    # Find all <message-id> patterns
-    message_ids = re.findall(r'<([^>]+)>', header_value)
-    return message_ids
+            _sort_all_children(container.children)
 
 
 def _build_containers_from_messages(messages):
@@ -292,9 +277,7 @@ def thread(messages):
     # Step 4: Group containers by subject
     root_set = _group_by_subject(root_set)
 
-    # Step 5: Sort all containers
-    sort_func = _default_sort
-    _sort_all_children(root_set, sort_func)
-    sort_func(root_set)
+    # Step 5: Sort all containers by date
+    _sort_all_children(root_set)
 
     return root_set

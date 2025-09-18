@@ -26,6 +26,15 @@ class EmailMessage:
         return str(self._email.get("Message-ID")).strip().strip("<>")
 
     @property
+    def sanitized_message_id(self) -> str:
+        return (
+            self.message_id.replace("<", "")
+            .replace(">", "")
+            .replace("@", "_at_")
+            .replace(".", "_")
+        )
+
+    @property
     def subject(self) -> str:
         return str(self._email.get("Subject"))
 
@@ -81,7 +90,9 @@ class EmailIndex:
         self._create_tables()
         self.repo = pygit2.Repository(git_repo_path)
 
-    def _calculate_root_message_id(self, msg: EmailMessage, msg_root_mapping: Dict[str, str]) -> str:
+    def _calculate_root_message_id(
+        self, msg: EmailMessage, msg_root_mapping: Dict[str, str]
+    ) -> str:
         if not msg.references:
             return msg.message_id
         else:
@@ -110,7 +121,11 @@ class EmailIndex:
     def index_git_repo(self, branch: str = "refs/heads/master"):
 
         commit = self.repo.references[branch].peel(pygit2.Commit)
-        commits = list(self.repo.walk(commit.id, pygit2.GIT_SORT_TOPOLOGICAL | pygit2.GIT_SORT_REVERSE))
+        commits = list(
+            self.repo.walk(
+                commit.id, pygit2.GIT_SORT_TOPOLOGICAL | pygit2.GIT_SORT_REVERSE
+            )
+        )
 
         # Dictionary to track message_id -> root_message_id mappings
         msg_root_mapping = {}
@@ -168,7 +183,9 @@ class EmailIndex:
             (target_message_id,),
         ).fetchall()
 
-        email_objects = [EmailMessage.from_oid(msg["git_oid"], self.repo) for msg in messages]
+        email_objects = [
+            EmailMessage.from_oid(msg["git_oid"], self.repo) for msg in messages
+        ]
         return thread(email_objects)
 
     def __enter__(self):

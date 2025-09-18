@@ -6,11 +6,6 @@ from mbox_handler import get_thread_messages, get_all_cached_threads, force_refr
 
 app = Flask(__name__)
 
-app.jinja_env.filters["sanitize_message_id"] = (
-    lambda x: x.replace("<", "").replace(">", "").replace("@", "_at_").replace(".", "_")
-)
-
-
 @app.route("/")
 def index():
     search_query = request.args.get('search', '').strip()

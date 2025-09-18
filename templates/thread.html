@@ -23,8 +23,8 @@
             <div class="thread-list">
                 {% for message in messages %}
                 <div class="message-item {% if loop.index0 == 0 %}selected{% endif %}"
-                     onclick="showMessage('{{ message.message_id|sanitize_message_id }}')"
-                     id="sidebar-{{ message.message_id|sanitize_message_id }}"
+                     onclick="showMessage('{{ message.sanitized_message_id }}')"
+                     id="sidebar-{{ message.sanitized_message_id }}"
 ">
                     <div class="message-line">
                         {{ (message.date_iso[:10] + ' ' + message.date_iso[11:16]) }}&nbsp;&nbsp;{% if message.level and message.level > 0 %}{% for i in range(message.level) %}&nbsp;&nbsp;{% endfor %}<span style="color: #999;">└─&nbsp;</span>{% endif %}{% if message.display_subject %}{{ message.display_subject }}&nbsp;&nbsp;{% endif %}{{ message.from_name  }}
@@ -36,7 +36,7 @@
 
         <div class="main-content" id="main-content">
             {% for message in messages %}
-            <div class="email-message" id="msg-{{ message.message_id|sanitize_message_id }}">
+            <div class="email-message" id="msg-{{ message.sanitized_message_id }}">
                 <div class="email-header">
                     <div class="email-subject">{{ message.subject }}</div>
                     <div class="email-meta">

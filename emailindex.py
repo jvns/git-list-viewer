@@ -162,8 +162,7 @@ class EmailIndex:
     def find_thread(self, target_message_id: str, git_repo_path):
         messages = self.conn.execute(
             """
-            SELECT message_id, subject, from_name, from_addr, date_sent, git_oid
-            FROM messages
+            SELECT git_oid FROM messages
             WHERE root_message_id = (
                 SELECT root_message_id FROM messages WHERE message_id = ?
             )

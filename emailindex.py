@@ -2,7 +2,7 @@
 import sqlite3
 import email
 import email.utils
-import email.header
+import email.policy
 import re
 import argparse
 from datetime import datetime
@@ -17,71 +17,51 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-@dataclass
 class EmailMessage:
-    message_id: str
-    subject: str
-    from_name: str
-    from_addr: str
-    date: datetime
-    references: List[str]
-    _git_repo: Optional[object] = None
-    _git_oid: Optional[str] = None
-
     def __init__(self, raw_email: bytes):
-        eml = email.message_from_bytes(raw_email)
+        self._email = email.message_from_bytes(raw_email, policy=email.policy.default)
 
-        self.message_id = str(eml.get("Message-ID", "")).strip().strip("<>")
+    @property
+    def message_id(self) -> str:
+        return str(self._email.get("Message-ID")).strip().strip("<>")
 
-        # Decode subject header properly
-        subject_header = eml.get("Subject", "")
-        if subject_header:
-            decoded_parts = email.header.decode_header(subject_header)
-            self.subject = ""
-            for part, encoding in decoded_parts:
-                if part is None:
-                    continue
-                elif isinstance(part, bytes):
-                    # Handle unknown encodings by falling back to utf-8 or latin-1
-                    if encoding and encoding.lower() not in ('unknown-8bit', 'unknown'):
-                        try:
-                            self.subject += part.decode(encoding, errors='replace')
-                        except (LookupError, UnicodeDecodeError):
-                            # Fall back to utf-8, then latin-1
-                            try:
-                                self.subject += part.decode('utf-8', errors='replace')
-                            except UnicodeDecodeError:
-                                self.subject += part.decode('latin-1', errors='replace')
-                    else:
-                        # Unknown or no encoding - try utf-8, then latin-1
-                        try:
-                            self.subject += part.decode('utf-8', errors='replace')
-                        except UnicodeDecodeError:
-                            self.subject += part.decode('latin-1', errors='replace')
-                else:
-                    self.subject += str(part)
-        else:
-            self.subject = ""
+    @property
+    def subject(self) -> str:
+        return str(self._email.get("Subject"))
 
-        from_header = str(eml.get("From", ""))
-        self.from_name, self.from_addr = email.utils.parseaddr(from_header)
+    @property
+    def from_name(self) -> str:
+        from_header = str(self._email.get("From", ""))
+        name, _ = email.utils.parseaddr(from_header)
+        return name
 
-        refs = str(eml.get("References", ""))
-        in_reply_to = str(eml.get("In-Reply-To", ""))
+    @property
+    def from_addr(self) -> str:
+        from_header = str(self._email.get("From", ""))
+        _, addr = email.utils.parseaddr(from_header)
+        return addr
+
+    @property
+    def references(self) -> List[str]:
+        refs = str(self._email.get("References", ""))
+        in_reply_to = str(self._email.get("In-Reply-To", ""))
         all_refs = f"{refs} {in_reply_to}"
-        self.references = re.findall(r"<([^>]+)>", all_refs)
+        return re.findall(r"<([^>]+)>", all_refs)
 
-        date_str = str(eml.get("Date", ""))
+    @property
+    def date(self) -> datetime:
+        date_str = str(self._email.get("Date", ""))
         time_tuple = email.utils.parsedate_tz(date_str)
-        assert time_tuple is not None
         timestamp = email.utils.mktime_tz(time_tuple)
-        self.date = datetime.fromtimestamp(timestamp)
+        return datetime.fromtimestamp(timestamp)
 
-        payload = eml.get_payload(decode=True)
+    @property
+    def body(self) -> str:
+        payload = self._email.get_payload(decode=True)
         if payload:
-            self.body = payload.decode("utf-8", errors="ignore")
+            return payload.decode("utf-8", errors="ignore")
         else:
-            self.body = str(eml.get_payload())
+            return str(self._email.get_payload())
 
     @classmethod
     def from_oid(cls, git_oid, repo):

@@ -302,74 +302,40 @@ def print_thread_tree(containers: List[Container], indent: int = 0):
             print_thread_tree(container.children, indent + 1)
 
 
-# Convenience function that matches jwzthreading library interface
 def thread(messages, sort_func=None):
     """
-    Thread messages - compatible interface with jwzthreading library
+    Thread messages using JWZ algorithm
 
     Args:
-        messages: List of objects with message_id, subject, references, and date attributes
+        messages: List of EmailMessage objects
         sort_func: Function to sort containers
 
     Returns:
-        List of root containers
+        List of root containers with original EmailMessage objects
     """
-    # Use the original message objects directly instead of converting them
-    # Just create wrapper Message objects that reference the originals
-    msg_objects = []
-    for msg in messages:
-        # Handle different input formats
-        if hasattr(msg, 'message_id'):
-            message_id = msg.message_id
-        elif hasattr(msg, 'get') and callable(msg.get):
-            message_id = msg.get('Message-ID', '').strip('<>')
-        else:
-            message_id = getattr(msg, 'message_id', '')
-
-        if hasattr(msg, 'subject'):
-            subject = msg.subject
-        elif hasattr(msg, 'get') and callable(msg.get):
-            subject = msg.get('Subject', '')
-        else:
-            subject = getattr(msg, 'subject', '')
-
-        if hasattr(msg, 'references'):
-            references = msg.references
-        elif hasattr(msg, 'get') and callable(msg.get):
-            refs_header = msg.get('References', '')
-            in_reply_to = msg.get('In-Reply-To', '')
-            combined = f"{refs_header} {in_reply_to}"
-            references = extract_message_ids(combined)
-        else:
-            references = getattr(msg, 'references', [])
-
-        if hasattr(msg, 'date'):
-            date = msg.date
-        else:
-            date = getattr(msg, 'date', None)
-
-        # Create Message wrapper but preserve original in a special attribute
-        msg_obj = Message(
-            message_id=message_id,
-            subject=subject,
-            references=references,
-            date=date
-        )
-        # Store reference to original message
-        msg_obj.original = msg
-        msg_objects.append(msg_obj)
+    # Convert EmailMessage objects to Message dataclass for threading
+    msg_objects = [
+        Message(
+            message_id=msg.message_id,
+            subject=msg.subject,
+            references=msg.references,
+            date=msg.date
+        ) for msg in messages
+    ]
 
     containers = thread_messages(msg_objects, sort_func)
 
-    # Replace the Message objects in containers with the original messages
-    def replace_messages_in_containers(containers_list):
-        for container in containers_list:
-            if container.message and hasattr(container.message, 'original'):
-                container.message = container.message.original
-            if container.children:
-                replace_messages_in_containers(container.children)
+    # Replace Message objects with original EmailMessage objects
+    msg_lookup = {msg.message_id: orig_msg for msg, orig_msg in zip(msg_objects, messages)}
 
-    replace_messages_in_containers(containers)
+    def replace_with_originals(containers_list):
+        for container in containers_list:
+            if container.message and container.message.message_id in msg_lookup:
+                container.message = msg_lookup[container.message.message_id]
+            if container.children:
+                replace_with_originals(container.children)
+
+    replace_with_originals(containers)
     return containers
 
 

@@ -62,13 +62,13 @@ def normalize_subject(subject: str) -> str:
     return subject.strip()
 
 
-def _prune_empty_containers(containers: List[Container]) -> List[Container]:
+def prune_empty_containers(containers: List[Container]) -> List[Container]:
     """Prune empty containers from the thread tree"""
     result = []
 
     for container in containers:
         # First, recursively prune children
-        container.children = _prune_empty_containers(container.children)
+        container.children = prune_empty_containers(container.children)
 
         if container.is_dummy() and not container.children:
             # Empty container with no children - discard it
@@ -96,7 +96,7 @@ def _prune_empty_containers(containers: List[Container]) -> List[Container]:
     return result
 
 
-def _build_subject_table(root_set: List[Container]) -> Dict[str, Container]:
+def build_subject_table(root_set: List[Container]) -> Dict[str, Container]:
     """Build subject table for grouping containers by normalized subject"""
     subject_table: Dict[str, Container] = {}
 
@@ -121,15 +121,15 @@ def _build_subject_table(root_set: List[Container]) -> Dict[str, Container]:
     return subject_table
 
 
-def _sort_all_children(containers):
+def sort_all_children(containers):
     """Recursively sort all children in container tree by date"""
     containers.sort(key=lambda c: c.message.date if c.message and c.message.date else 0)
     for container in containers:
         if container.children:
-            _sort_all_children(container.children)
+            sort_all_children(container.children)
 
 
-def _build_containers_from_messages(messages):
+def build_containers_from_messages(messages):
     """Build initial container tree from messages and their references"""
     id_table = {}
 
@@ -171,9 +171,9 @@ def _build_containers_from_messages(messages):
     return id_table
 
 
-def _group_by_subject(root_set):
+def group_by_subject(root_set):
     """Group containers with the same subject together"""
-    subject_table = _build_subject_table(root_set)
+    subject_table = build_subject_table(root_set)
     grouped_set = []
     processed = set()
 
@@ -194,13 +194,13 @@ def _group_by_subject(root_set):
             continue
 
         # Group the containers based on subject threading rules
-        _merge_subject_containers(container, table_container, grouped_set, processed)
+        merge_subject_containers(container, table_container, grouped_set, processed)
         processed.add(container)
 
     return grouped_set
 
 
-def _merge_subject_containers(container, table_container, grouped_set, processed):
+def merge_subject_containers(container, table_container, grouped_set, processed):
     """Merge two containers with the same subject according to threading rules"""
     if table_container in processed:
         # Table container already processed
@@ -247,18 +247,18 @@ def _merge_subject_containers(container, table_container, grouped_set, processed
 
 def thread(messages):
     # Step 1: Build the container tree from messages and references
-    id_table = _build_containers_from_messages(messages)
+    id_table = build_containers_from_messages(messages)
 
     # Step 2: Find root containers (those with no parent)
     root_set = [container for container in id_table.values() if container.parent is None]
 
     # Step 3: Prune empty containers
-    root_set = _prune_empty_containers(root_set)
+    root_set = prune_empty_containers(root_set)
 
     # Step 4: Group containers by subject
-    root_set = _group_by_subject(root_set)
+    root_set = group_by_subject(root_set)
 
     # Step 5: Sort all containers by date
-    _sort_all_children(root_set)
+    sort_all_children(root_set)
 
     return root_set

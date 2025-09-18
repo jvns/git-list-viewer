@@ -1,11 +1,7 @@
 #!/usr/bin/env python3
 """
-JWZ Threading Algorithm Implementation
-
 Based on Jamie Zawinski's algorithm described at:
 https://www.jwz.org/doc/threading.html
-
-This implements the full JWZ threading algorithm for email messages.
 """
 
 import re

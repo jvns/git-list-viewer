@@ -1,54 +1,58 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ messages[0].subject }} - Git Mailing List Thread</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inconsolata:wght@400;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ messages[0].subject }} - Git Mailing List Thread</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inconsolata:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
+
 <body>
-    <div class="container">
-        <div class="sidebar">
-            <div class="header">
-                <h1>Thread Messages</h1>
-            </div>
+  <div class="container">
+    <div class="sidebar">
+      <div class="header">
+        <h1>Thread Messages</h1>
+      </div>
 
-            <div class="thread-info">
-                {{ messages|length }} message{% if messages|length != 1 %}s{% endif %} in thread
-            </div>
+      <div class="thread-info">
+        {{ messages|length }} message{% if messages|length != 1 %}s{% endif %} in thread
+      </div>
 
-            <div class="thread-list">
-                {% for message in messages %}
-                <div class="message-item {% if loop.index0 == 0 %}selected{% endif %}"
-                     onclick="showMessage('{{ message.sanitized_message_id }}')"
-                     id="sidebar-{{ message.sanitized_message_id }}"
-">
-                    <div class="message-line">
-                        {{ (message.date_iso[:10] + ' ' + message.date_iso[11:16]) }}&nbsp;&nbsp;{% if message.level and message.level > 0 %}{% for i in range(message.level) %}&nbsp;&nbsp;{% endfor %}<span style="color: #999;">└─&nbsp;</span>{% endif %}{% if message.display_subject %}{{ message.display_subject }}&nbsp;&nbsp;{% endif %}{{ message.from_name  }}
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
+      <div class="thread-list">
+        {% for message in messages %}
+        <div class="message-item {% if loop.index0 == 0 %}selected{% endif %}"
+          onclick="showMessage('{{ message.sanitized_message_id }}')" id="sidebar-{{ message.sanitized_message_id }}" ">
+                    <div class=" message-line">
+          {{ (message.date_iso[:10] + ' ' + message.date_iso[11:16]) }}&nbsp;&nbsp;{% if message.level and message.level
+          > 0 %}{% for i in range(message.level) %}&nbsp;&nbsp;{% endfor %}<span style="color: #999;">└─&nbsp;</span>{%
+          endif %}{% if message.display_subject %}{{ message.display_subject }}&nbsp;&nbsp;{% endif %}{{
+          message.from_name }}
         </div>
-
-        <div class="main-content" id="main-content">
-            {% for message in messages %}
-            <div class="email-message" id="msg-{{ message.sanitized_message_id }}">
-                <div class="email-header">
-                    <div class="email-subject">{{ message.subject }}</div>
-                    <div class="email-meta">
-                        <span class="author-name">{{ message.from_name }}</span> &nbsp;&nbsp; {{ message.date_iso[:16]  }}
-                    </div>
-                </div>
-                <div class="email-body">{{ message.body }}</div>
-            </div>
-            {% endfor %}
-        </div>
+      </div>
+      {% endfor %}
     </div>
+  </div>
 
-    <script src="{{ url_for('static', filename='js/thread.js') }}"></script>
+  <div class="main-content" id="main-content">
+    {% for message in messages %}
+    <div class="email-message" id="msg-{{ message.sanitized_message_id }}">
+      <div class="email-header">
+        <div class="email-subject">{{ message.subject }}</div>
+        <div class="email-meta">
+          <span class="author-name">{{ message.from_name }}</span> &nbsp;&nbsp; {{ message.date_iso[:16] }}
+        </div>
+      </div>
+      <div class="email-body">{{ message.body }}</div>
+    </div>
+    {% endfor %}
+  </div>
+  </div>
+
+  <script src="{{ url_for('static', filename='js/thread.js') }}"></script>
 </body>
+
 </html>

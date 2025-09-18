@@ -134,7 +134,6 @@ class EmailIndex:
                 from_addr TEXT,
                 from_name TEXT,
                 date_sent INTEGER,
-                refs TEXT,
                 git_oid TEXT,
                 root_message_id TEXT
             )
@@ -194,8 +193,8 @@ class EmailIndex:
         self.conn.execute(
             """
             INSERT OR REPLACE INTO messages
-            (message_id, subject, from_addr, from_name, date_sent, refs, git_oid, root_message_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            (message_id, subject, from_addr, from_name, date_sent, git_oid, root_message_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
         """,
             (
                 msg.message_id,
@@ -203,7 +202,6 @@ class EmailIndex:
                 msg.from_addr,
                 msg.from_name,
                 int(msg.date.timestamp()),
-                " ".join(f"<{ref}>" for ref in msg.references),
                 git_oid,
                 root_message_id,
             ),
@@ -225,7 +223,7 @@ class EmailIndex:
         # Find all messages with the same root_message_id
         cursor = self.conn.execute(
             """
-            SELECT message_id, subject, from_name, from_addr, date_sent, refs, git_oid
+            SELECT message_id, subject, from_name, from_addr, date_sent, git_oid
             FROM messages
             WHERE root_message_id = ?
             ORDER BY date_sent
@@ -245,8 +243,19 @@ class EmailIndex:
 
         email_objects = []
         for msg in messages:
-            # Extract references from refs field
-            refs = re.findall(r"<([^>]+)>", msg["refs"]) if msg["refs"] else []
+            # Get references from git if available
+            refs = []
+            if repo and msg["git_oid"]:
+                try:
+                    blob = repo[msg["git_oid"]]
+                    eml = email.message_from_bytes(blob.data)
+                    refs_header = str(eml.get("References", ""))
+                    in_reply_to = str(eml.get("In-Reply-To", ""))
+                    all_refs = f"{refs_header} {in_reply_to}"
+                    refs = re.findall(r"<([^>]+)>", all_refs)
+                except:
+                    refs = []
+
             email_msg = EmailMessage.for_threading(
                 msg["message_id"],
                 msg["subject"],

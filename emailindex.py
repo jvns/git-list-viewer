@@ -211,9 +211,7 @@ def main():
     args = parser.parse_args()
 
     with EmailIndex(args.db) as index:
-        # Index Git repository
-        if args.git_repo:
-            index.index_git_repo(args.git_repo)
+        index.index_git_repo(args.git_repo)
 
 
 if __name__ == "__main__":

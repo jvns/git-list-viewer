@@ -77,6 +77,12 @@ class EmailMessage:
         timestamp = email.utils.mktime_tz(time_tuple)
         self.date = datetime.fromtimestamp(timestamp)
 
+        payload = eml.get_payload(decode=True)
+        if payload:
+            self.body = payload.decode("utf-8", errors="ignore")
+        else:
+            self.body = str(eml.get_payload())
+
     @classmethod
     def from_oid(cls, git_oid, repo):
         """Create EmailMessage from git object ID"""

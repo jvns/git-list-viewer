@@ -57,7 +57,7 @@ def _flatten_containers_to_messages(containers, messages, level=0, parent_subjec
                 'message_id': msg.message_id,
                 'in_reply_to': msg.references[-1] if msg.references else '',
                 'references': ' '.join(f'<{ref}>' for ref in msg.references),
-                'body': msg.get_body(),  # Load body on-demand from git
+                'body': msg.body,  # Body already loaded from git
                 'level': level
             }
             messages.append(message_dict)

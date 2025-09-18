@@ -34,16 +34,16 @@
 
   <main id="main-content">
     {% for message in messages %}
-    <div class="email-message" id="msg-{{ message.sanitized_message_id }}">
-      <div class="email-header">
+    <section class="email-message" id="msg-{{ message.sanitized_message_id }}">
+      <h2>
         <div class="email-subject">{{ message.subject }}</div>
         <div class="email-meta">
           <span class="author-name">{{ message.from_name }}</span> &nbsp;&nbsp; {{ message.date.strftime('%Y-%m-%d
           %H:%M') }}
         </div>
-      </div>
+      </h2>
       <div class="email-body">{{ message.body }}</div>
-    </div>
+    </section>
     {% endfor %}
   </main>
 

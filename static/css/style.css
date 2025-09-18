@@ -59,46 +59,47 @@ main {
 .email-message {
   border-bottom: 2px solid #ddd;
   margin-bottom: 0;
-}
 
-.email-message:last-child {
-  border-bottom: none;
-}
+  &:last-child {
+    border-bottom: none;
+  }
 
-.email-header {
-  background: #79003c;
-  padding: 8px 20px;
-  border-bottom: 1px solid #ddd;
-  color: white;
-}
+  h2 {
+    background: #79003c;
+    padding: 8px 20px;
+    border-bottom: 1px solid #ddd;
+    color: white;
+  }
 
-.email-subject {
-  font-size: 14px;
-  font-weight: bold;
-  color: white;
-  word-wrap: break-word;
-  margin-bottom: 3px;
-}
+  .email-subject {
+    font-size: 14px;
+    font-weight: bold;
+    color: white;
+    word-wrap: break-word;
+    margin-bottom: 3px;
+  }
 
-.email-meta {
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 11px;
-}
+  .email-meta {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 11px;
+  }
 
-.author-name {
-  color: white;
-  font-weight: bold;
-  font-size: 12px;
-}
+  .author-name {
+    color: white;
+    font-weight: bold;
+    font-size: 12px;
+  }
 
-.email-body {
-  padding: 30px;
-  white-space: pre-wrap;
-  font-family: 'Inconsolata', 'Courier New', monospace;
-  font-size: 14px;
-  line-height: 1.5;
-  color: #333;
-  word-wrap: break-word;
+  .email-body {
+    padding: 1rem;
+    white-space: pre-wrap;
+    font-family: 'Inconsolata', 'Courier New', monospace;
+    font-size: 14px;
+    line-height: 1.5;
+    color: #333;
+    word-wrap: break-word;
+  }
+
 }
 
 .thread-info {

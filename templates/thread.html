@@ -27,7 +27,7 @@
                      id="sidebar-{{ message.message_id|sanitize_message_id }}"
 ">
                     <div class="message-line">
-                        {{ (message.date_iso[:10] + ' ' + message.date_iso[11:16]) }}&nbsp;&nbsp;{% if message.level and message.level > 0 %}{% for i in range(message.level) %}&nbsp;&nbsp;{% endfor %}<span style="color: #999;">└─&nbsp;</span>{% endif %}{% if message.display_subject %}{{ message.display_subject }}&nbsp;&nbsp;{% endif %}{{ (message.from_.split('<')[0].strip() if '<' in message.from_ else message.from_).strip('"') }}
+                        {{ (message.date_iso[:10] + ' ' + message.date_iso[11:16]) }}&nbsp;&nbsp;{% if message.level and message.level > 0 %}{% for i in range(message.level) %}&nbsp;&nbsp;{% endfor %}<span style="color: #999;">└─&nbsp;</span>{% endif %}{% if message.display_subject %}{{ message.display_subject }}&nbsp;&nbsp;{% endif %}{{ message.from_name  }}
                     </div>
                 </div>
                 {% endfor %}
@@ -40,7 +40,7 @@
                 <div class="email-header">
                     <div class="email-subject">{{ message.subject }}</div>
                     <div class="email-meta">
-                        <span class="author-name">{{ message.from_.split('<')[0].strip() if '<' in message.from_ else message.from_ }}</span> &nbsp;&nbsp; {{ message.date_iso[:16]  }}
+                        <span class="author-name">{{ message.from_name }}</span> &nbsp;&nbsp; {{ message.date_iso[:16]  }}
                     </div>
                 </div>
                 <div class="email-body">{{ message.body }}</div>

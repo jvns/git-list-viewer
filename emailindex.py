@@ -30,10 +30,6 @@ class EmailMessage:
         return str(self._email.get("Subject"))
 
     @property
-    def from_(self) -> str:
-        return str(self._email.get("From"))
-
-    @property
     def from_name(self) -> str:
         from_header = str(self._email.get("From"))
         name, _ = email.utils.parseaddr(from_header)

@@ -21,7 +21,7 @@
       <div class="thread-list">
         {% for message in messages %}
         <div class="message-item {% if loop.index0 == 0 %}selected{% endif %}"
-          onclick="showMessage('{{ message.sanitized_message_id }}')" id="sidebar-{{ message.sanitized_message_id }}" ">
+          onclick="showMessage('{{ message.sanitized_message_id }}')" id="sidebar-{{ message.sanitized_message_id }}">
                     <div class=" message-line">
           {{ message.date.strftime('%Y-%m-%d %H:%M') }}&nbsp;&nbsp;{% if message.level and message.level
           > 0 %}{% for i in range(message.level) %}&nbsp;&nbsp;{% endfor %}<span style="color: #999;">└─&nbsp;</span>{%

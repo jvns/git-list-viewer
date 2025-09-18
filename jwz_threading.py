@@ -298,31 +298,3 @@ def thread(messages):
     sort_func(root_set)
 
     return root_set
-
-
-def print_thread_tree(containers: List[Container], indent: int = 0):
-    """Print the thread tree for debugging"""
-    for container in containers:
-        prefix = "  " * indent
-        if container.message:
-            print(f"{prefix}{container.message.subject} ({container.message.message_id})")
-        else:
-            print(f"{prefix}[dummy container]")
-
-        if container.children:
-            print_thread_tree(container.children, indent + 1)
-
-
-if __name__ == "__main__":
-    # Test with some sample messages
-    test_messages = [
-        Message("1@example.com", "Hello", []),
-        Message("2@example.com", "Re: Hello", ["1@example.com"]),
-        Message("3@example.com", "Re: Hello", ["1@example.com", "2@example.com"]),
-        Message("4@example.com", "Another topic", []),
-        Message("5@example.com", "Re: Another topic", ["4@example.com"]),
-    ]
-
-    threaded = thread(test_messages)
-    print("Threaded messages:")
-    print_thread_tree(threaded)

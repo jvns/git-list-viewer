@@ -8,25 +8,10 @@ import re
 from typing import List, Dict, Optional, Set, Callable
 from dataclasses import dataclass
 
-
-@dataclass
-class Message:
-    """Represents an email message for threading"""
-    message_id: str
-    subject: str
-    references: List[str]
-    date: object = None  # Can be any comparable object (datetime, timestamp, etc.)
-
-    def __post_init__(self):
-        # Ensure references is a list
-        if self.references is None:
-            self.references = []
-
-
 class Container:
     """Container object for threading algorithm"""
 
-    def __init__(self, message: Optional[Message] = None):
+    def __init__(self, message = None):
         self.message = message
         self.parent: Optional['Container'] = None
         self.children: List['Container'] = []

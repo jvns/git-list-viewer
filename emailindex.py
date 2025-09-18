@@ -65,7 +65,6 @@ class EmailMessage:
 
     @classmethod
     def from_oid(cls, git_oid, repo):
-        """Create EmailMessage from git object ID"""
         blob = repo[git_oid]
         return cls(blob.data)
 

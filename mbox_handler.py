@@ -49,18 +49,9 @@ def _flatten_containers_to_messages(containers, messages, level=0, parent_subjec
                 if parent_normalized and parent_normalized in current_normalized:
                     display_subject = ""
 
-            message_dict = {
-                'subject': msg.subject,
-                'display_subject': display_subject,
-                'from': f"{msg.from_name} <{msg.from_addr}>",
-                'date': msg.date.isoformat() if hasattr(msg.date, 'isoformat') else str(msg.date),
-                'message_id': msg.message_id,
-                'in_reply_to': msg.references[-1] if msg.references else '',
-                'references': ' '.join(f'<{ref}>' for ref in msg.references),
-                'body': msg.body,  # Body already loaded from git
-                'level': level
-            }
-            messages.append(message_dict)
+            msg.display_subject = display_subject
+            msg.level = level
+            messages.append(msg)
 
             # Process children, passing current subject as parent
             if hasattr(container, 'children') and container.children:

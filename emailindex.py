@@ -30,6 +30,10 @@ class EmailMessage:
         return str(self._email.get("Subject"))
 
     @property
+    def from_(self) -> str:
+        return str(self._email.get("From"))
+
+    @property
     def from_name(self) -> str:
         from_header = str(self._email.get("From"))
         name, _ = email.utils.parseaddr(from_header)
@@ -54,6 +58,10 @@ class EmailMessage:
         time_tuple = email.utils.parsedate_tz(date_str)
         timestamp = email.utils.mktime_tz(time_tuple)
         return datetime.fromtimestamp(timestamp)
+
+    @property
+    def date_iso(self) -> str:
+        return self.date.isoformat()
 
     @property
     def body(self) -> str:

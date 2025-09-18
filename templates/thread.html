@@ -37,7 +37,7 @@
     </div>
   </div>
 
-  <div class="main-content" id="main-content">
+  <main id="main-content">
     {% for message in messages %}
     <div class="email-message" id="msg-{{ message.sanitized_message_id }}">
       <div class="email-header">
@@ -49,7 +49,7 @@
       <div class="email-body">{{ message.body }}</div>
     </div>
     {% endfor %}
-  </div>
+  </main>
   </div>
 
   <script src="{{ url_for('static', filename='js/thread.js') }}"></script>

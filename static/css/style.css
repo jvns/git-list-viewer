@@ -17,7 +17,7 @@ body {
     box-shadow: 2px 0 5px rgba(0,0,0,0.1);
 }
 
-.main-content {
+main {
     flex: 1;
     background: white;
     overflow-y: auto;

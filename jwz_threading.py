@@ -163,21 +163,9 @@ def extract_message_ids(header_value: str) -> List[str]:
     return message_ids
 
 
-def thread(messages, sort_func: Optional[Callable] = None) -> List[Container]:
-    """
-    Thread a list of messages using the JWZ algorithm
-
-    Args:
-        messages: List of EmailMessage objects to thread
-        sort_func: Optional function to sort containers. Should accept a list of containers.
-                  If None, containers are sorted by date.
-
-    Returns:
-        List of root Container objects representing the threaded structure
-    """
-
-    # Step 1: Build the id_table and create containers
-    id_table: Dict[str, Container] = {}
+def _build_containers_from_messages(messages):
+    """Build initial container tree from messages and their references"""
+    id_table = {}
 
     for message in messages:
         # Find or create container for this message
@@ -214,21 +202,14 @@ def thread(messages, sort_func: Optional[Callable] = None) -> List[Container]:
         if prev_container and not container.has_descendant(prev_container):
             prev_container.add_child(container)
 
-    # Step 2: Find root set
-    root_set = []
-    for container in id_table.values():
-        if container.parent is None:
-            root_set.append(container)
+    return id_table
 
-    # Step 3: Prune empty containers
-    root_set = _prune_empty_containers(root_set)
 
-    # Step 4: Group by subject
+def _group_by_subject(root_set):
+    """Group containers with the same subject together"""
     subject_table = _build_subject_table(root_set)
-
-    # Group containers with same subject
-    new_root_set = []
-    processed: Set[Container] = set()
+    grouped_set = []
+    processed = set()
 
     for container in root_set:
         if container in processed:
@@ -236,70 +217,100 @@ def thread(messages, sort_func: Optional[Callable] = None) -> List[Container]:
 
         subject = normalize_subject(container.get_subject())
         if not subject or subject not in subject_table:
-            new_root_set.append(container)
+            grouped_set.append(container)
             processed.add(container)
             continue
 
         table_container = subject_table[subject]
         if table_container == container:
-            new_root_set.append(container)
+            grouped_set.append(container)
             processed.add(container)
             continue
 
-        # Group the containers
-        if table_container in processed:
-            # Table container already processed, add this as child
-            if not container.get_subject().lower().startswith('re:'):
-                # This is not a reply, make it parent
-                dummy = Container()
-                dummy.add_child(table_container)
-                dummy.add_child(container)
-                # Find and replace table_container in new_root_set
-                if table_container in new_root_set:
-                    idx = new_root_set.index(table_container)
-                    new_root_set[idx] = dummy
-                else:
-                    new_root_set.append(dummy)
-            else:
-                # This is a reply, add as child
-                if table_container in new_root_set:
-                    table_container.add_child(container)
-        else:
-            # Neither processed yet
-            if (table_container.is_dummy() and not container.is_dummy()):
-                table_container.add_child(container)
-                new_root_set.append(table_container)
-            elif (not table_container.is_dummy() and container.is_dummy()):
-                container.add_child(table_container)
-                new_root_set.append(container)
-            elif (not table_container.get_subject().lower().startswith('re:') and
-                  container.get_subject().lower().startswith('re:')):
-                table_container.add_child(container)
-                new_root_set.append(table_container)
-            elif (table_container.get_subject().lower().startswith('re:') and
-                  not container.get_subject().lower().startswith('re:')):
-                container.add_child(table_container)
-                new_root_set.append(container)
-            else:
-                # Both are replies or both are not - make siblings
-                dummy = Container()
-                dummy.add_child(table_container)
-                dummy.add_child(container)
-                new_root_set.append(dummy)
-
-            processed.add(table_container)
-
+        # Group the containers based on subject threading rules
+        _merge_subject_containers(container, table_container, grouped_set, processed)
         processed.add(container)
 
-    # Step 5: Sort siblings
+    return grouped_set
+
+
+def _merge_subject_containers(container, table_container, grouped_set, processed):
+    """Merge two containers with the same subject according to threading rules"""
+    if table_container in processed:
+        # Table container already processed
+        if not container.get_subject().lower().startswith('re:'):
+            # This is not a reply, make it parent
+            dummy = Container()
+            dummy.add_child(table_container)
+            dummy.add_child(container)
+            # Replace table_container in grouped_set
+            if table_container in grouped_set:
+                idx = grouped_set.index(table_container)
+                grouped_set[idx] = dummy
+            else:
+                grouped_set.append(dummy)
+        else:
+            # This is a reply, add as child
+            if table_container in grouped_set:
+                table_container.add_child(container)
+    else:
+        # Neither processed yet - decide parent/child relationship
+        if (table_container.is_dummy() and not container.is_dummy()):
+            table_container.add_child(container)
+            grouped_set.append(table_container)
+        elif (not table_container.is_dummy() and container.is_dummy()):
+            container.add_child(table_container)
+            grouped_set.append(container)
+        elif (not table_container.get_subject().lower().startswith('re:') and
+              container.get_subject().lower().startswith('re:')):
+            table_container.add_child(container)
+            grouped_set.append(table_container)
+        elif (table_container.get_subject().lower().startswith('re:') and
+              not container.get_subject().lower().startswith('re:')):
+            container.add_child(table_container)
+            grouped_set.append(container)
+        else:
+            # Both are replies or both are not - make siblings
+            dummy = Container()
+            dummy.add_child(table_container)
+            dummy.add_child(container)
+            grouped_set.append(dummy)
+
+        processed.add(table_container)
+
+
+def thread(messages, sort_func=None):
+    """
+    Thread a list of messages using the JWZ algorithm
+
+    Args:
+        messages: List of EmailMessage objects to thread
+        sort_func: Optional function to sort containers. Should accept a list of containers.
+                  If None, containers are sorted by date.
+
+    Returns:
+        List of root Container objects representing the threaded structure
+    """
+    # Step 1: Build the container tree from messages and references
+    id_table = _build_containers_from_messages(messages)
+
+    # Step 2: Find root containers (those with no parent)
+    root_set = [container for container in id_table.values() if container.parent is None]
+
+    # Step 3: Prune empty containers
+    root_set = _prune_empty_containers(root_set)
+
+    # Step 4: Group containers by subject
+    root_set = _group_by_subject(root_set)
+
+    # Step 5: Sort all containers
     if sort_func is None:
-        # Default sort by date
         sort_func = _default_sort
 
-    _sort_all_children(new_root_set, sort_func)
-    sort_func(new_root_set)
+    _sort_all_children(root_set, sort_func)
+    sort_func(root_set)
 
-    return new_root_set
+    return root_set
 
 
 def print_thread_tree(containers: List[Container], indent: int = 0):

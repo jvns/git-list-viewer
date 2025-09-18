@@ -77,6 +77,20 @@ class EmailIndex:
         self.conn.row_factory = sqlite3.Row
         self._create_tables()
 
+    def _calculate_root_message_id(self, msg: EmailMessage, msg_root_mapping: Dict[str, str]) -> str:
+        if not msg.references:
+            # No references = thread starter
+            return msg.message_id
+        else:
+            # Has references - look up the root of the first reference
+            first_ref = msg.references[0]
+            if first_ref in msg_root_mapping:
+                # Single hop: use the already-calculated root of the first reference
+                return msg_root_mapping[first_ref]
+            else:
+                # First reference not seen yet, assume it's the root
+                return first_ref
+
     def _create_tables(self):
         self.conn.execute(
             """
@@ -125,21 +139,7 @@ class EmailIndex:
         if not msg.message_id:
             return
 
-        # Calculate root message ID using single-hop lookup
-        if not msg.references:
-            # No references = thread starter
-            root_message_id = msg.message_id
-        else:
-            # Has references - look up the root of the first reference
-            first_ref = msg.references[0]
-            if first_ref in msg_root_mapping:
-                # Single hop: use the already-calculated root of the first reference
-                root_message_id = msg_root_mapping[first_ref]
-            else:
-                # First reference not seen yet, assume it's the root
-                root_message_id = first_ref
-
-        # Store this mapping for future lookups
+        root_message_id = self._calculate_root_message_id(msg, msg_root_mapping)
         msg_root_mapping[msg.message_id] = root_message_id
 
         self.conn.execute(

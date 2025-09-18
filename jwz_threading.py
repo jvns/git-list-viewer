@@ -115,6 +115,31 @@ def _prune_empty_containers(containers: List[Container]) -> List[Container]:
     return result
 
 
+def _build_subject_table(root_set: List[Container]) -> Dict[str, Container]:
+    """Build subject table for grouping containers by normalized subject"""
+    subject_table: Dict[str, Container] = {}
+
+    for container in root_set:
+        subject = normalize_subject(container.get_subject())
+        if not subject:
+            continue
+
+        if subject not in subject_table:
+            subject_table[subject] = container
+        else:
+            existing = subject_table[subject]
+
+            # Prefer non-dummy containers
+            if existing.is_dummy() and not container.is_dummy():
+                subject_table[subject] = container
+            # Prefer non-Re subjects
+            elif (existing.get_subject().lower().startswith('re:') and
+                  not container.get_subject().lower().startswith('re:')):
+                subject_table[subject] = container
+
+    return subject_table
+
+
 def _default_sort(containers: List[Container]):
     """Default sort function - sort by date"""
     containers.sort(key=lambda c: c.message.date if c.message and c.message.date else 0)
@@ -199,26 +224,7 @@ def thread(messages, sort_func: Optional[Callable] = None) -> List[Container]:
     root_set = _prune_empty_containers(root_set)
 
     # Step 4: Group by subject
-    subject_table: Dict[str, Container] = {}
-
-    # Build subject table
-    for container in root_set:
-        subject = normalize_subject(container.get_subject())
-        if not subject:
-            continue
-
-        if subject not in subject_table:
-            subject_table[subject] = container
-        else:
-            existing = subject_table[subject]
-
-            # Prefer non-dummy containers
-            if existing.is_dummy() and not container.is_dummy():
-                subject_table[subject] = container
-            # Prefer non-Re subjects
-            elif (existing.get_subject().lower().startswith('re:') and
-                  not container.get_subject().lower().startswith('re:')):
-                subject_table[subject] = container
+    subject_table = _build_subject_table(root_set)
 
     # Group containers with same subject
     new_root_set = []

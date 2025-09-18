@@ -12,25 +12,24 @@
 </head>
 
 <body>
-  <div class="container">
-    <div class="sidebar">
-      <div class="thread-info">
-        {{ messages|length }} message{% if messages|length != 1 %}s{% endif %} in thread
-      </div>
+  <div class="sidebar">
+    <div class="thread-info">
+      {{ messages|length }} message{% if messages|length != 1 %}s{% endif %} in thread
+    </div>
 
-      <div class="thread-list">
-        {% for message in messages %}
-        <div class="message-item {% if loop.index0 == 0 %}selected{% endif %}"
-          onclick="showMessage('{{ message.sanitized_message_id }}')" id="sidebar-{{ message.sanitized_message_id }}">
-                    <div class=" message-line">
+    <ul class="thread-list">
+      {% for message in messages %}
+      <li class="message-item {% if loop.index0 == 0 %}selected{% endif %}"
+        onclick="showMessage('{{ message.sanitized_message_id }}')" id="sidebar-{{ message.sanitized_message_id }}">
+        <div class="message-line">
           {{ message.date.strftime('%Y-%m-%d %H:%M') }}&nbsp;&nbsp;{% if message.level and message.level
           > 0 %}{% for i in range(message.level) %}&nbsp;&nbsp;{% endfor %}<span style="color: #999;">└─&nbsp;</span>{%
           endif %}{% if message.display_subject %}{{ message.display_subject }}&nbsp;&nbsp;{% endif %}{{
           message.from_name }}
         </div>
-      </div>
+      </li>
       {% endfor %}
-    </div>
+    </ul>
   </div>
 
   <main id="main-content">
@@ -39,14 +38,14 @@
       <div class="email-header">
         <div class="email-subject">{{ message.subject }}</div>
         <div class="email-meta">
-          <span class="author-name">{{ message.from_name }}</span> &nbsp;&nbsp; {{ message.date.strftime('%Y-%m-%d %H:%M') }}
+          <span class="author-name">{{ message.from_name }}</span> &nbsp;&nbsp; {{ message.date.strftime('%Y-%m-%d
+          %H:%M') }}
         </div>
       </div>
       <div class="email-body">{{ message.body }}</div>
     </div>
     {% endfor %}
   </main>
-  </div>
 
   <script src="{{ url_for('static', filename='js/thread.js') }}"></script>
 </body>

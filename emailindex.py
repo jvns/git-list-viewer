@@ -196,14 +196,11 @@ class EmailIndex:
         email_objects = [EmailMessage.from_oid(msg["git_oid"], repo) for msg in messages]
         return thread(email_objects)
 
-    def close(self):
-        self.conn.close()
-
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.close()
+        self.conn.close()
 
 
 def main():

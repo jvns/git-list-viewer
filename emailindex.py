@@ -71,25 +71,27 @@ class EmailMessage:
 
 
 class EmailIndex:
-    def __init__(self, db_path: str):
+    def __init__(self, db_path: str, git_repo_path: str = None):
         self.db_path = Path(db_path)
         self.conn = sqlite3.connect(str(self.db_path))
         self.conn.row_factory = sqlite3.Row
         self._create_tables()
 
+        self.repo = None
+        if git_repo_path:
+            try:
+                self.repo = pygit2.Repository(git_repo_path)
+            except:
+                pass
+
     def _calculate_root_message_id(self, msg: EmailMessage, msg_root_mapping: Dict[str, str]) -> str:
         if not msg.references:
-            # No references = thread starter
             return msg.message_id
         else:
-            # Has references - look up the root of the first reference
             first_ref = msg.references[0]
             if first_ref in msg_root_mapping:
-                # Single hop: use the already-calculated root of the first reference
                 return msg_root_mapping[first_ref]
-            else:
-                # First reference not seen yet, assume it's the root
-                return first_ref
+        raise Exception("oop")
 
     def _create_tables(self):
         self.conn.execute(
@@ -159,7 +161,7 @@ class EmailIndex:
             ),
         )
 
-    def find_thread(self, target_message_id: str, git_repo_path):
+    def find_thread(self, target_message_id: str):
         messages = self.conn.execute(
             """
             SELECT git_oid FROM messages
@@ -171,8 +173,10 @@ class EmailIndex:
             (target_message_id,),
         ).fetchall()
 
-        repo = pygit2.Repository(git_repo_path)
-        email_objects = [EmailMessage.from_oid(msg["git_oid"], repo) for msg in messages]
+        if not self.repo:
+            return []
+
+        email_objects = [EmailMessage.from_oid(msg["git_oid"], self.repo) for msg in messages]
         return thread(email_objects)
 
     def __enter__(self):

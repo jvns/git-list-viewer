@@ -14,8 +14,8 @@ GIT_REPO_PATH = os.environ.get('GIT_REPO_PATH', os.path.expanduser('~/clones/1.g
 def get_thread_messages(message_id):
     """Get thread messages from the email index backend"""
     try:
-        with EmailIndex(EMAIL_DB_PATH) as index:
-            containers = index.find_thread(message_id, GIT_REPO_PATH)
+        with EmailIndex(EMAIL_DB_PATH, GIT_REPO_PATH) as index:
+            containers = index.find_thread(message_id)
 
             if not containers:
                 return None
@@ -74,7 +74,7 @@ def _flatten_containers_to_messages(containers, messages, level=0, parent_subjec
 def get_all_cached_threads(search_query=None):
     """Get all threads from the email index (replaces cached threads)"""
     try:
-        with EmailIndex(EMAIL_DB_PATH) as index:
+        with EmailIndex(EMAIL_DB_PATH, GIT_REPO_PATH) as index:
             # Get all unique message IDs that have been indexed
             # Build search condition
             search_condition = ""

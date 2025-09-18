@@ -145,21 +145,27 @@ class EmailIndex:
 
     def index_git_repo(self, repo_path: str, branch: str = "refs/heads/master"):
         repo = pygit2.Repository(repo_path)
-        # Walk through all commits
-        count = 0
+
+        # Collect all commits first for reverse topological order
         commit = repo.references[branch].peel(pygit2.Commit)
-        for commit in repo.walk(commit.id):
+        commits = list(repo.walk(commit.id, pygit2.GIT_SORT_TOPOLOGICAL | pygit2.GIT_SORT_REVERSE))
+
+        # Dictionary to track message_id -> root_message_id mappings
+        msg_root_mapping = {}
+
+        count = 0
+        for commit in commits:
             for entry in commit.tree:
                 if entry.type == pygit2.GIT_OBJECT_BLOB:
                     blob = repo[entry.id]
-                    self._add_message_to_db(blob, str(entry.id))
+                    self._add_message_to_db(blob, str(entry.id), msg_root_mapping)
                     count += 1
                     if count % 100 == 0:
                         logger.info(f"Indexed {count} messages...")
 
         self.conn.commit()
 
-    def _add_message_to_db(self, blob, git_oid):
+    def _add_message_to_db(self, blob, git_oid, msg_root_mapping):
         raw_email = blob.data
         if not (b"Message-ID:" in raw_email or b"From:" in raw_email):
             return
@@ -168,13 +174,22 @@ class EmailIndex:
         if not msg.message_id:
             return
 
-        # Calculate root message ID
+        # Calculate root message ID using single-hop lookup
         if not msg.references:
             # No references = thread starter
             root_message_id = msg.message_id
         else:
-            # Has references = reply, use first reference as root
-            root_message_id = msg.references[0]
+            # Has references - look up the root of the first reference
+            first_ref = msg.references[0]
+            if first_ref in msg_root_mapping:
+                # Single hop: use the already-calculated root of the first reference
+                root_message_id = msg_root_mapping[first_ref]
+            else:
+                # First reference not seen yet, assume it's the root
+                root_message_id = first_ref
+
+        # Store this mapping for future lookups
+        msg_root_mapping[msg.message_id] = root_message_id
 
         self.conn.execute(
             """
@@ -195,15 +210,27 @@ class EmailIndex:
         )
 
     def find_thread(self, target_message_id: str, git_repo_path: str = None):
-        # Find messages that reference our target
+        # First, find the root_message_id for the target message
+        root_cursor = self.conn.execute(
+            "SELECT root_message_id FROM messages WHERE message_id = ?",
+            (target_message_id,)
+        )
+        root_result = root_cursor.fetchone()
+
+        if not root_result:
+            return []
+
+        root_message_id = root_result['root_message_id']
+
+        # Find all messages with the same root_message_id
         cursor = self.conn.execute(
             """
             SELECT message_id, subject, from_name, from_addr, date_sent, refs, git_oid
             FROM messages
-            WHERE refs LIKE ? OR message_id = ?
+            WHERE root_message_id = ?
             ORDER BY date_sent
         """,
-            (f"%{target_message_id}%", target_message_id),
+            (root_message_id,),
         )
 
         messages = cursor.fetchall()

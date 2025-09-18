@@ -78,31 +78,10 @@ class EmailMessage:
         self.date = datetime.fromtimestamp(timestamp)
 
     @classmethod
-    def for_threading(cls, message_id: str, subject: str, references: List[str], from_name: str = "", from_addr: str = "", date=None):
-        obj = cls.__new__(cls)
-        obj.message_id = message_id
-        obj.subject = subject
-        obj.references = references
-        obj.from_name = from_name
-        obj.from_addr = from_addr
-        obj.date = date or datetime.fromtimestamp(0)
-        obj._git_repo = None
-        obj._git_oid = None
-        return obj
-
-    def get_body(self):
-        """Get email body from git repository"""
-        if self._git_repo and self._git_oid:
-            blob = self._git_repo[self._git_oid]
-            eml = email.message_from_bytes(blob.data)
-            payload = eml.get_payload(decode=True)
-            if payload:
-                body = payload.decode("utf-8", errors="ignore")
-            else:
-                body = str(eml.get_payload())
-
-            return body
-        return ""
+    def from_oid(cls, git_oid, repo):
+        """Create EmailMessage from git object ID"""
+        blob = repo[git_oid]
+        return cls(blob.data)
 
 
 class EmailIndex:
@@ -144,19 +123,19 @@ class EmailIndex:
             for entry in commit.tree:
                 if entry.type == pygit2.GIT_OBJECT_BLOB:
                     blob = repo[entry.id]
-                    self._add_message_to_db(blob, str(entry.id), msg_root_mapping)
+                    self._add_message_to_db(blob, str(entry.id), msg_root_mapping, repo)
                     count += 1
                     if count % 100 == 0:
                         logger.info(f"Indexed {count} messages...")
 
         self.conn.commit()
 
-    def _add_message_to_db(self, blob, git_oid, msg_root_mapping):
+    def _add_message_to_db(self, blob, git_oid, msg_root_mapping, repo):
         raw_email = blob.data
         if not (b"Message-ID:" in raw_email or b"From:" in raw_email):
             return
 
-        msg = EmailMessage(raw_email)
+        msg = EmailMessage.from_oid(git_oid, repo)
         if not msg.message_id:
             return
 
@@ -228,37 +207,7 @@ class EmailIndex:
             except:
                 pass
 
-        email_objects = []
-        for msg in messages:
-            # Get references from git if available
-            refs = []
-            if repo and msg["git_oid"]:
-                try:
-                    blob = repo[msg["git_oid"]]
-                    eml = email.message_from_bytes(blob.data)
-                    refs_header = str(eml.get("References", ""))
-                    in_reply_to = str(eml.get("In-Reply-To", ""))
-                    all_refs = f"{refs_header} {in_reply_to}"
-                    refs = re.findall(r"<([^>]+)>", all_refs)
-                except:
-                    refs = []
-
-            email_msg = EmailMessage.for_threading(
-                msg["message_id"],
-                msg["subject"],
-                refs,
-                msg["from_name"],
-                msg["from_addr"],
-                datetime.fromtimestamp(msg["date_sent"])
-            )
-
-            # Set git repo and object ID for body loading
-            if repo and msg["git_oid"]:
-                email_msg._git_repo = repo
-                email_msg._git_oid = msg["git_oid"]
-
-            email_objects.append(email_msg)
-
+        email_objects = [EmailMessage.from_oid(msg["git_oid"], repo) for msg in messages]
         return thread(email_objects)
 
     def close(self):

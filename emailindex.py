@@ -197,9 +197,7 @@ class EmailIndex:
         return thread(email_objects)
 
     def close(self):
-        """Close database connection"""
-        if self.conn:
-            self.conn.close()
+        self.conn.close()
 
     def __enter__(self):
         return self

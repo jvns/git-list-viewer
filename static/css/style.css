@@ -11,7 +11,6 @@ body {
   background: white;
   border-right: 1px solid #ddd;
   overflow-y: auto;
-  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
 
   ul {
     padding: 0;
@@ -52,10 +51,6 @@ main {
   overflow-y: auto;
 }
 
-.email-content {
-  padding: 0;
-}
-
 .email-message {
   border-bottom: 2px solid #ddd;
   margin-bottom: 0;
@@ -67,8 +62,8 @@ main {
   h2 {
     background: #79003c;
     padding: 8px 20px;
-    border-bottom: 1px solid #ddd;
     color: white;
+    margin: 0;
   }
 
   .email-subject {
@@ -80,7 +75,6 @@ main {
   }
 
   .email-meta {
-    color: rgba(255, 255, 255, 0.7);
     font-size: 11px;
   }
 
@@ -90,7 +84,7 @@ main {
     font-size: 12px;
   }
 
-  .email-body {
+  pre {
     padding: 1rem;
     white-space: pre-wrap;
     font-family: 'Inconsolata', 'Courier New', monospace;

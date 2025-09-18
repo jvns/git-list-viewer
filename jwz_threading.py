@@ -138,7 +138,7 @@ def extract_message_ids(header_value: str) -> List[str]:
     return message_ids
 
 
-def thread_messages(messages, sort_func: Optional[Callable] = None) -> List[Container]:
+def thread(messages, sort_func: Optional[Callable] = None) -> List[Container]:
     """
     Thread a list of messages using the JWZ algorithm
 
@@ -309,21 +309,6 @@ def print_thread_tree(containers: List[Container], indent: int = 0):
             print_thread_tree(container.children, indent + 1)
 
 
-
-def thread(messages, sort_func=None):
-    """
-    Thread messages using JWZ algorithm
-
-    Args:
-        messages: List of EmailMessage objects
-        sort_func: Function to sort containers
-
-    Returns:
-        List of root containers with EmailMessage objects
-    """
-    return thread_messages(messages, sort_func)
-
-
 if __name__ == "__main__":
     # Test with some sample messages
     test_messages = [
@@ -334,6 +319,6 @@ if __name__ == "__main__":
         Message("5@example.com", "Re: Another topic", ["4@example.com"]),
     ]
 
-    threaded = thread_messages(test_messages)
+    threaded = thread(test_messages)
     print("Threaded messages:")
     print_thread_tree(threaded)

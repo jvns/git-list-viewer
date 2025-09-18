@@ -1,7 +1,7 @@
 const messages = window.messagesData;
 
 function selectMessage(sanitizedId) {
-  window.location.hash = sanitizedId;
+  history.replaceState(null, null, '#' + sanitizedId);
   document.querySelectorAll('.message-item.selected').forEach(el => {
     el.classList.remove('selected');
   });

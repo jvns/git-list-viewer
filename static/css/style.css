@@ -18,7 +18,7 @@ body {
 }
 
 .main-content {
-    width: 60%;
+    flex: 1;
     background: white;
     overflow-y: auto;
 }
@@ -125,3 +125,4 @@ body {
     font-size: 11px;
     color: #666;
 }
+

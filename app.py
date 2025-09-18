@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 
 import os
-from flask import Flask, render_template, redirect, url_for
+from flask import Flask, render_template, redirect, url_for, request
 from mbox_handler import get_thread_messages, get_all_cached_threads, force_refresh_thread
-from thread_tree import build_thread_tree
 
 app = Flask(__name__)
 
@@ -14,7 +13,8 @@ app.jinja_env.filters["sanitize_message_id"] = (
 
 @app.route("/")
 def index():
-    cached_threads = get_all_cached_threads()
+    search_query = request.args.get('search', '').strip()
+    cached_threads = get_all_cached_threads(search_query if search_query else None)
     return render_template("index.html", cached_threads=cached_threads)
 
 
@@ -33,12 +33,9 @@ def view_message_by_id(message_id):
     if not messages:
         return f"Could not download thread for message ID {message_id}", 404
 
-    # Build threaded structure
-    threaded_messages = build_thread_tree(messages)
-
     return render_template(
         "thread.html",
-        messages=threaded_messages,
+        messages=messages,
     )
 
 

@@ -1,226 +1,138 @@
 #!/usr/bin/env python3
 
 import os
-import requests
-import gzip
-import mailbox
-import tempfile
-import sqlite3
-import json
-from datetime import datetime, timedelta
-from urllib.parse import quote
+import re
+from emailindex import EmailIndex
+from datetime import datetime
 
 
-def download_mbox_thread(message_id):
-    """Download mbox file for a thread from lore.kernel.org"""
-    encoded_id = quote(message_id, safe="")
-    url = f"https://lore.kernel.org/all/{encoded_id}/t.mbox.gz"
-
-    headers = {"User-Agent": "curl/7.68.0"}
-    response = requests.get(url, headers=headers, timeout=30)
-    response.raise_for_status()
-
-    # Decompress the gzip content
-    mbox_content = gzip.decompress(response.content)
-    return mbox_content.decode("utf-8", errors="ignore")
-
-
-def parse_mbox_content(mbox_content):
-    """Parse mbox content into email messages"""
-    messages = []
-
-    # Write to a temporary file since mbox needs a file path
-    with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".mbox", delete=False
-    ) as temp_file:
-        temp_file.write(mbox_content)
-        temp_file_path = temp_file.name
-
-    mbox = mailbox.mbox(temp_file_path)
-
-    for message in mbox:
-        msg_data = {
-            "subject": message.get("Subject", "No Subject"),
-            "from": message.get("From", "Unknown"),
-            "date": message.get("Date", ""),
-            "message_id": message.get("Message-ID", ""),
-            "in_reply_to": message.get("In-Reply-To", ""),
-            "references": message.get("References", ""),
-        }
-
-        # Get body
-        if message.is_multipart():
-            body = ""
-            for part in message.walk():
-                if part.get_content_type() == "text/plain":
-                    try:
-                        body += part.get_payload(decode=True).decode(
-                            "utf-8", errors="ignore"
-                        )
-                    except:
-                        body += str(part.get_payload())
-        else:
-            try:
-                payload = message.get_payload(decode=True)
-                if payload:
-                    body = payload.decode("utf-8", errors="ignore")
-                else:
-                    body = str(message.get_payload())
-            except:
-                body = str(message.get_payload())
-
-        msg_data["body"] = body
-        messages.append(msg_data)
-
-    # Clean up temporary file
-    os.unlink(temp_file_path)
-
-
-    return messages
-
-
-def init_db():
-    """Initialize SQLite database for caching"""
-    conn = sqlite3.connect("mbox_cache.db")
-    cursor = conn.cursor()
-
-    cursor.execute(
-        """
-        CREATE TABLE IF NOT EXISTS mbox_cache (
-            message_id TEXT PRIMARY KEY,
-            mbox_content TEXT,
-            cached_at TIMESTAMP,
-            thread_data TEXT
-        )
-    """
-    )
-
-    conn.commit()
-    conn.close()
-
-
-def get_cached_thread(message_id):
-    """Get cached thread data if available and not expired"""
-    conn = sqlite3.connect("mbox_cache.db")
-    cursor = conn.cursor()
-
-    cursor.execute(
-        """
-        SELECT thread_data, cached_at FROM mbox_cache
-        WHERE message_id = ?
-    """,
-        (message_id,),
-    )
-
-    result = cursor.fetchone()
-    conn.close()
-
-    if result:
-        thread_data, cached_at = result
-        cached_time = datetime.fromisoformat(cached_at)
-
-        # Cache expires after 1 hour
-        if datetime.now() - cached_time < timedelta(hours=1):
-            return json.loads(thread_data)
-
-    return None
-
-
-def cache_thread(message_id, mbox_content, messages):
-    """Cache thread data in SQLite"""
-    conn = sqlite3.connect("mbox_cache.db")
-    cursor = conn.cursor()
-
-    cursor.execute(
-        """
-        INSERT OR REPLACE INTO mbox_cache
-        (message_id, mbox_content, cached_at, thread_data)
-        VALUES (?, ?, ?, ?)
-    """,
-        (message_id, mbox_content, datetime.now().isoformat(), json.dumps(messages)),
-    )
-
-    conn.commit()
-    conn.close()
-
-
-def get_all_cached_threads():
-    """Get all cached threads with basic info"""
-    init_db()
-
-    conn = sqlite3.connect("mbox_cache.db")
-    cursor = conn.cursor()
-
-    cursor.execute("""
-        SELECT message_id, cached_at, thread_data FROM mbox_cache
-        ORDER BY cached_at DESC
-    """)
-
-    results = cursor.fetchall()
-    conn.close()
-
-    threads = []
-    for message_id, cached_at, thread_data in results:
-        messages = json.loads(thread_data)
-        if messages:
-            # Get the first message for thread info
-            first_msg = messages[0]
-            threads.append({
-                'message_id': message_id,
-                'subject': first_msg.get('subject', 'No Subject'),
-                'from': first_msg.get('from', 'Unknown'),
-                'date': first_msg.get('date', ''),
-                'cached_at': cached_at,
-                'message_count': len(messages)
-            })
-
-    return threads
-
-
-def force_refresh_thread(message_id):
-    """Force refresh a thread by downloading fresh data and updating cache"""
-    init_db()
-
-    # Download fresh data
-    mbox_content = download_mbox_thread(message_id)
-
-    if not mbox_content:
-        return None
-
-    messages = parse_mbox_content(mbox_content)
-
-    if not messages:
-        return None
-
-    # Update cache with fresh data
-    cache_thread(message_id, mbox_content, messages)
-
-    return messages
+# Configuration - can be moved to environment variable or config file
+EMAIL_DB_PATH = os.environ.get('EMAIL_DB_PATH', 'emails.db')
+GIT_REPO_PATH = os.environ.get('GIT_REPO_PATH', os.path.expanduser('~/clones/1.git'))
 
 
 def get_thread_messages(message_id):
-    """Get thread messages, using cache if available or downloading if needed"""
-    # Initialize database if needed
-    init_db()
+    """Get thread messages from the email index backend"""
+    try:
+        with EmailIndex(EMAIL_DB_PATH) as index:
+            containers = index.find_thread(message_id, GIT_REPO_PATH)
 
-    # Check cache first
-    cached_messages = get_cached_thread(message_id)
+            if not containers:
+                return None
 
-    if cached_messages:
-        return cached_messages
+            # Convert containers to message format expected by the frontend
+            messages = []
+            _flatten_containers_to_messages(containers, messages)
 
-    # Download and parse if not cached
-    mbox_content = download_mbox_thread(message_id)
-
-    if not mbox_content:
+            return messages
+    except Exception as e:
+        print(f"Error getting thread messages: {e}")
         return None
 
-    messages = parse_mbox_content(mbox_content)
 
-    if not messages:
-        return None
+def _normalize_subject(subject):
+    """Remove Re:, Fwd:, etc. and normalize subject"""
+    return re.sub(r"^(Re|Fwd|Fw):\s*", "", subject, flags=re.IGNORECASE).strip()
 
-    # Cache the results
-    cache_thread(message_id, mbox_content, messages)
 
-    return messages
+def _flatten_containers_to_messages(containers, messages, level=0, parent_subject=None):
+    """Convert JWZ container tree to flat message list with level info"""
+    for container in containers:
+        if hasattr(container, 'message') and container.message:
+            msg = container.message
+
+            # Calculate display subject (hide redundant subjects)
+            display_subject = msg.subject
+            if parent_subject and level > 0:
+                parent_normalized = _normalize_subject(parent_subject)
+                current_normalized = _normalize_subject(msg.subject)
+                if parent_normalized and parent_normalized in current_normalized:
+                    display_subject = ""
+
+            message_dict = {
+                'subject': msg.subject,
+                'display_subject': display_subject,
+                'from': f"{msg.from_name} <{msg.from_addr}>",
+                'date': msg.date.isoformat() if hasattr(msg.date, 'isoformat') else str(msg.date),
+                'message_id': msg.message_id,
+                'in_reply_to': msg.references[-1] if msg.references else '',
+                'references': ' '.join(f'<{ref}>' for ref in msg.references),
+                'body': msg.get_body(),  # Load body on-demand from git
+                'level': level
+            }
+            messages.append(message_dict)
+
+            # Process children, passing current subject as parent
+            if hasattr(container, 'children') and container.children:
+                _flatten_containers_to_messages(container.children, messages, level + 1, msg.subject)
+        else:
+            # Dummy container - process children with same parent subject
+            if hasattr(container, 'children') and container.children:
+                _flatten_containers_to_messages(container.children, messages, level, parent_subject)
+
+
+def get_all_cached_threads(search_query=None):
+    """Get all threads from the email index (replaces cached threads)"""
+    try:
+        with EmailIndex(EMAIL_DB_PATH) as index:
+            # Get all unique message IDs that have been indexed
+            # Build search condition
+            search_condition = ""
+            search_params = []
+            if search_query:
+                search_condition = """
+                    AND (subject LIKE ? OR from_name LIKE ? OR from_addr LIKE ?)
+                """
+                search_like = f"%{search_query}%"
+                search_params = [search_like, search_like, search_like]
+
+            cursor = index.conn.execute(f"""
+                WITH filtered_messages AS (
+                    SELECT message_id, subject, from_name, from_addr, date_sent, root_message_id
+                    FROM messages
+                    WHERE (subject NOT LIKE 'Re:%' AND subject NOT LIKE 'RE:%')
+                      AND (subject NOT LIKE '% v2 %' AND subject NOT LIKE '% v3 %'
+                           AND subject NOT LIKE '% v4 %' AND subject NOT LIKE '% v5 %'
+                           AND subject NOT LIKE '% v6 %' AND subject NOT LIKE '% v7 %'
+                           AND subject NOT LIKE '% v8 %' AND subject NOT LIKE '% v9 %')
+                      {search_condition}
+                ),
+                ranked_messages AS (
+                    SELECT message_id, subject, from_name, from_addr, date_sent, root_message_id,
+                           ROW_NUMBER() OVER (PARTITION BY root_message_id ORDER BY date_sent ASC) as rn
+                    FROM filtered_messages
+                ),
+                thread_counts AS (
+                    SELECT root_message_id, COUNT(*) as thread_count
+                    FROM messages
+                    GROUP BY root_message_id
+                )
+                SELECT r.message_id, r.subject, r.from_name, r.from_addr, r.date_sent, t.thread_count
+                FROM ranked_messages r
+                JOIN thread_counts t ON r.root_message_id = t.root_message_id
+                WHERE r.rn = 1
+                ORDER BY r.date_sent DESC
+                LIMIT 100
+            """, search_params)
+
+            threads = []
+            for row in cursor.fetchall():
+                threads.append({
+                    'message_id': row['message_id'],
+                    'subject': row['subject'],
+                    'from': f"{row['from_name']} <{row['from_addr']}>",
+                    'date': datetime.fromtimestamp(row['date_sent']).isoformat(),
+                    'message_count': row['thread_count']
+                })
+
+            return threads
+    except Exception as e:
+        print(f"Error getting all threads: {e}")
+        return []
+
+
+def force_refresh_thread(message_id):
+    """Force refresh is not needed with git backend - data is always current"""
+    # For git backend, we don't need to refresh individual threads
+    # The git repository itself would need to be re-indexed
+    return get_thread_messages(message_id)

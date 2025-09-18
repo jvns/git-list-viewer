@@ -81,6 +81,53 @@ def normalize_subject(subject: str) -> str:
     return subject.strip()
 
 
+def _prune_empty_containers(containers: List[Container]) -> List[Container]:
+    """Prune empty containers from the thread tree"""
+    result = []
+
+    for container in containers:
+        # First, recursively prune children
+        container.children = _prune_empty_containers(container.children)
+
+        if container.is_dummy() and not container.children:
+            # Empty container with no children - discard it
+            continue
+        elif container.is_dummy() and container.children:
+            # Empty container with children
+            if container.parent is None:
+                # At root level - promote children if there's only one
+                if len(container.children) == 1:
+                    child = container.children[0]
+                    child.parent = None
+                    result.append(child)
+                else:
+                    # Keep the dummy container to group children
+                    result.append(container)
+            else:
+                # Not at root level - promote all children
+                for child in container.children:
+                    child.parent = container.parent
+                    result.append(child)
+        else:
+            # Non-empty container - keep it
+            result.append(container)
+
+    return result
+
+
+def _default_sort(containers: List[Container]):
+    """Default sort function - sort by date"""
+    containers.sort(key=lambda c: c.message.date if c.message and c.message.date else 0)
+
+
+def _sort_all_children(containers: List[Container], sort_func: Callable):
+    """Recursively sort all children in container tree"""
+    sort_func(containers)
+    for container in containers:
+        if container.children:
+            _sort_all_children(container.children, sort_func)
+
+
 def extract_message_ids(header_value: str) -> List[str]:
     """Extract message IDs from References or In-Reply-To header"""
     if not header_value:
@@ -149,39 +196,7 @@ def thread_messages(messages: List[Message], sort_func: Optional[Callable] = Non
             root_set.append(container)
 
     # Step 3: Prune empty containers
-    def prune_empty_containers(containers: List[Container]) -> List[Container]:
-        result = []
-
-        for container in containers:
-            # First, recursively prune children
-            container.children = prune_empty_containers(container.children)
-
-            if container.is_dummy() and not container.children:
-                # Empty container with no children - discard it
-                continue
-            elif container.is_dummy() and container.children:
-                # Empty container with children
-                if container.parent is None:
-                    # At root level - promote children if there's only one
-                    if len(container.children) == 1:
-                        child = container.children[0]
-                        child.parent = None
-                        result.append(child)
-                    else:
-                        # Keep the dummy container to group children
-                        result.append(container)
-                else:
-                    # Not at root level - promote all children
-                    for child in container.children:
-                        child.parent = container.parent
-                        result.append(child)
-            else:
-                # Non-empty container - keep it
-                result.append(container)
-
-        return result
-
-    root_set = prune_empty_containers(root_set)
+    root_set = _prune_empty_containers(root_set)
 
     # Step 4: Group by subject
     subject_table: Dict[str, Container] = {}
@@ -273,17 +288,9 @@ def thread_messages(messages: List[Message], sort_func: Optional[Callable] = Non
     # Step 5: Sort siblings
     if sort_func is None:
         # Default sort by date
-        def default_sort(containers: List[Container]):
-            containers.sort(key=lambda c: c.message.date if c.message and c.message.date else 0)
-        sort_func = default_sort
+        sort_func = _default_sort
 
-    def sort_all_children(containers: List[Container]):
-        sort_func(containers)
-        for container in containers:
-            if container.children:
-                sort_all_children(container.children)
-
-    sort_all_children(new_root_set)
+    _sort_all_children(new_root_set, sort_func)
     sort_func(new_root_set)
 
     return new_root_set
@@ -300,6 +307,15 @@ def print_thread_tree(containers: List[Container], indent: int = 0):
 
         if container.children:
             print_thread_tree(container.children, indent + 1)
+
+
+def _replace_with_originals(containers_list: List[Container], msg_lookup: Dict[str, object]):
+    """Replace Message objects with original EmailMessage objects in containers"""
+    for container in containers_list:
+        if container.message and container.message.message_id in msg_lookup:
+            container.message = msg_lookup[container.message.message_id]
+        if container.children:
+            _replace_with_originals(container.children, msg_lookup)
 
 
 def thread(messages, sort_func=None):
@@ -327,15 +343,8 @@ def thread(messages, sort_func=None):
 
     # Replace Message objects with original EmailMessage objects
     msg_lookup = {msg.message_id: orig_msg for msg, orig_msg in zip(msg_objects, messages)}
+    _replace_with_originals(containers, msg_lookup)
 
-    def replace_with_originals(containers_list):
-        for container in containers_list:
-            if container.message and container.message.message_id in msg_lookup:
-                container.message = msg_lookup[container.message.message_id]
-            if container.children:
-                replace_with_originals(container.children)
-
-    replace_with_originals(containers)
     return containers
 
 

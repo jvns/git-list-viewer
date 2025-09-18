@@ -279,18 +279,7 @@ def _merge_subject_containers(container, table_container, grouped_set, processed
         processed.add(table_container)
 
 
-def thread(messages, sort_func=None):
-    """
-    Thread a list of messages using the JWZ algorithm
-
-    Args:
-        messages: List of EmailMessage objects to thread
-        sort_func: Optional function to sort containers. Should accept a list of containers.
-                  If None, containers are sorted by date.
-
-    Returns:
-        List of root Container objects representing the threaded structure
-    """
+def thread(messages):
     # Step 1: Build the container tree from messages and references
     id_table = _build_containers_from_messages(messages)
 
@@ -304,9 +293,7 @@ def thread(messages, sort_func=None):
     root_set = _group_by_subject(root_set)
 
     # Step 5: Sort all containers
-    if sort_func is None:
-        sort_func = _default_sort
-
+    sort_func = _default_sort
     _sort_all_children(root_set, sort_func)
     sort_func(root_set)
 

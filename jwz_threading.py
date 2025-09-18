@@ -138,12 +138,12 @@ def extract_message_ids(header_value: str) -> List[str]:
     return message_ids
 
 
-def thread_messages(messages: List[Message], sort_func: Optional[Callable] = None) -> List[Container]:
+def thread_messages(messages, sort_func: Optional[Callable] = None) -> List[Container]:
     """
     Thread a list of messages using the JWZ algorithm
 
     Args:
-        messages: List of Message objects to thread
+        messages: List of EmailMessage objects to thread
         sort_func: Optional function to sort containers. Should accept a list of containers.
                   If None, containers are sorted by date.
 
@@ -309,14 +309,6 @@ def print_thread_tree(containers: List[Container], indent: int = 0):
             print_thread_tree(container.children, indent + 1)
 
 
-def _replace_with_originals(containers_list: List[Container], msg_lookup: Dict[str, object]):
-    """Replace Message objects with original EmailMessage objects in containers"""
-    for container in containers_list:
-        if container.message and container.message.message_id in msg_lookup:
-            container.message = msg_lookup[container.message.message_id]
-        if container.children:
-            _replace_with_originals(container.children, msg_lookup)
-
 
 def thread(messages, sort_func=None):
     """
@@ -327,25 +319,9 @@ def thread(messages, sort_func=None):
         sort_func: Function to sort containers
 
     Returns:
-        List of root containers with original EmailMessage objects
+        List of root containers with EmailMessage objects
     """
-    # Convert EmailMessage objects to Message dataclass for threading
-    msg_objects = [
-        Message(
-            message_id=msg.message_id,
-            subject=msg.subject,
-            references=msg.references,
-            date=msg.date
-        ) for msg in messages
-    ]
-
-    containers = thread_messages(msg_objects, sort_func)
-
-    # Replace Message objects with original EmailMessage objects
-    msg_lookup = {msg.message_id: orig_msg for msg, orig_msg in zip(msg_objects, messages)}
-    _replace_with_originals(containers, msg_lookup)
-
-    return containers
+    return thread_messages(messages, sort_func)
 
 
 if __name__ == "__main__":

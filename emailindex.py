@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 import logging
 import pygit2
+import subprocess
 from jwz_threading import thread
 
 logging.basicConfig(level=logging.INFO)
@@ -115,6 +116,18 @@ class EmailIndex:
         self.conn.commit()
 
     def index_git_repo(self, branch: str = "refs/heads/master"):
+        logger.info("Running git fetch to update repository...")
+        try:
+            subprocess.run(
+                ["git", "fetch"],
+                cwd=self.repo.workdir,
+                check=True,
+                capture_output=True,
+                text=True
+            )
+            logger.info("Git fetch completed successfully")
+        except subprocess.CalledProcessError as e:
+            logger.warning(f"Git fetch failed: {e.stderr}")
 
         commit = self.repo.references[branch].peel(pygit2.Commit)
         commits = list(

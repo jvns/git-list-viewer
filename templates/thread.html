@@ -42,7 +42,7 @@
           %H:%M') }}
         </div>
       </h2>
-      <pre>{{ message.body }}</pre>
+      <pre>{{ message.body_html | safe }}</pre>
     </section>
     {% endfor %}
   </main>

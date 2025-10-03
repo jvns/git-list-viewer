@@ -73,6 +73,24 @@ class EmailMessage:
         else:
             return str(self._email.get_payload())
 
+    @property
+    def body_html(self) -> str:
+        """Return HTML-formatted body with quoted lines styled"""
+        import html
+
+        body_text = self.body
+        lines = body_text.split('\n')
+        processed_lines = []
+
+        for line in lines:
+            escaped_line = html.escape(line)
+            if line.strip().startswith('>'):
+                processed_lines.append(f'<span class="quoted-text">{escaped_line}</span>')
+            else:
+                processed_lines.append(escaped_line)
+
+        return '\n'.join(processed_lines)
+
     @classmethod
     def from_oid(cls, git_oid, repo):
         blob = repo[git_oid]
@@ -119,7 +137,7 @@ class EmailIndex:
         logger.info("Running git fetch to update repository...")
         try:
             subprocess.run(
-                ["git", "fetch"],
+                ["git", "fetch", "origin"],
                 cwd=self.repo.workdir,
                 check=True,
                 capture_output=True,

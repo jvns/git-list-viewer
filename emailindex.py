@@ -196,11 +196,7 @@ class EmailIndex:
             (target_message_id,),
         ).fetchall()
 
-        email_objects = []
-        for msg in messages:
-            email_msg = self._get_email_message(msg["commit_id"])
-            if email_msg:
-                email_objects.append(email_msg)
+        email_objects = [self._get_email_message(msg["commit_id"]) for msg in messages]
         return thread(email_objects)
 
     def __enter__(self):

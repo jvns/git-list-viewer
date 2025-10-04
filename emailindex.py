@@ -147,7 +147,6 @@ class EmailIndex:
         self.conn.commit()
 
     def _get_latest_processed_commit_id(self) -> Optional[str]:
-        """Get the commit_id of the last processed message using rowid"""
         cursor = self.conn.execute(
             "SELECT commit_id FROM messages ORDER BY rowid DESC LIMIT 1"
         )
@@ -155,7 +154,6 @@ class EmailIndex:
         return result[0] if result else None
 
     def _get_root_message_id_from_db(self, message_id: str) -> Optional[str]:
-        """Query database to get root message ID for a given message ID"""
         cursor = self.conn.execute(
             "SELECT root_message_id FROM messages WHERE message_id = ?", (message_id,)
         )
@@ -163,7 +161,6 @@ class EmailIndex:
         return result[0] if result else None
 
     def _get_email_message_from_commit(self, commit_id: str) -> EmailMessage:
-        """Get the EmailMessage from the single blob in a commit"""
         commit = self.repo[commit_id]
         for entry in commit.tree:
             if entry.type == pygit2.GIT_OBJECT_BLOB:

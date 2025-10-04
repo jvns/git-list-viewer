@@ -245,6 +245,35 @@ def merge_subject_containers(container, table_container, grouped_set, processed)
         processed.add(table_container)
 
 
+def _normalize_subject(subject):
+    return re.sub(r"^(Re|Fwd|Fw):\s*", "", subject, flags=re.IGNORECASE).strip()
+
+
+def _display_subject(msg, parent_subject, level):
+    display_subject = msg.subject
+    if parent_subject and level > 0:
+        parent_normalized = _normalize_subject(parent_subject)
+        current_normalized = _normalize_subject(msg.subject)
+        if parent_normalized and parent_normalized in current_normalized:
+            display_subject = ""
+    return display_subject
+
+def _flatten(containers, level=0, parent_subject=None):
+    for container in containers:
+        if hasattr(container, 'message'):
+            msg = container.message
+            msg.display_subject = _display_subject(msg, parent_subject, level)
+            msg.level = level
+            yield msg
+
+            # Process children, passing current subject as parent
+            if hasattr(container, 'children') and container.children:
+                yield from _flatten(container.children, level + 1, msg.subject)
+        else:
+            # Dummy container - process children with same parent subject
+            if hasattr(container, 'children') and container.children:
+                yield from _flatten(container.children, level, parent_subject)
+
 def thread(messages):
     # Step 1: Build the container tree from messages and references
     id_table = build_containers_from_messages(messages)
@@ -261,4 +290,7 @@ def thread(messages):
     # Step 5: Sort all containers by date
     sort_all_children(root_set)
 
-    return root_set
+    # Step 6: Flatten & normalize subjects
+    messages = list(_flatten(root_set))
+
+    return messages

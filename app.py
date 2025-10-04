@@ -2,7 +2,7 @@
 
 import os
 from flask import Flask, render_template, request
-from mbox_handler import get_thread_messages
+from emailindex import EmailIndex
 from search import search
 
 app = Flask(__name__)
@@ -18,8 +18,8 @@ def index():
 
 @app.route("/<path:message_id>/")
 def view_message_by_id(message_id):
-    """View message thread by Message-ID from lore.kernel.org"""
-    messages = get_thread_messages(message_id)
+    with EmailIndex(DB_PATH, REPO_PATH) as index:
+        messages = index.find_thread(message_id)
 
     if not messages:
         return f"Could not download thread for message ID {message_id}", 404

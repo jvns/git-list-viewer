@@ -2,14 +2,18 @@
 
 import os
 from flask import Flask, render_template, request
-from mbox_handler import get_thread_messages, search
+from mbox_handler import get_thread_messages
+from search import search
 
 app = Flask(__name__)
+
+DB_PATH = os.environ.get('EMAIL_DB_PATH', 'emails.db')
+REPO_PATH = os.environ.get('GIT_REPO_PATH', os.path.expanduser('~/clones/1.git'))
 
 @app.route("/")
 def index():
     search_query = request.args.get('search', '').strip()
-    threads = search(search_query if search_query else None)
+    threads = search(DB_PATH, REPO_PATH, search_query if search_query else None)
     return render_template("index.html", threads=threads)
 
 @app.route("/<path:message_id>/")

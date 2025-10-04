@@ -5,11 +5,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-  <title>Git Mailing List Viewer</title>
+  <title>git mailing list</title>
 </head>
 
 <body id="homepage">
-  <h1>Git Mailing List Viewer</h1>
+  <h1>git mailing list</h1>
   <form method="GET">
     <input type="text" name="search" placeholder="Search subject or sender..."
            value="{{ request.args.get('search', '') }}">

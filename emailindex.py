@@ -185,29 +185,17 @@ class EmailIndex:
         return list(walker)
 
     def index_git_repo(self):
-        logger.info("Running git fetch to update repository...")
         self.repo.remotes["origin"].fetch()
-        logger.info("Done")
 
         commits = self._get_commits()
-
-        # Dictionary to track message_id -> root_message_id mappings for current run
         msg_root_mapping = {}
-
-        count = 0
-        new_count = 0
         for commit in tqdm(commits):
-            commit_id = str(commit.id)
-            self._add_message_to_db(commit_id, msg_root_mapping)
+            self._add_message_to_db(str(commit.id), msg_root_mapping)
 
-        logger.info(f"Indexing complete: {new_count} new messages added")
-        self.conn.commit()
+        logger.info(f"Indexing complete: {len(commits)} new messages added")
 
     def _add_message_to_db(self, commit_id, msg_root_mapping):
         msg = self._get_email_message_from_commit(commit_id)
-        if not msg.message_id:
-            return
-
         root_message_id = self._calculate_root_message_id(msg, msg_root_mapping)
         msg_root_mapping[msg.message_id] = root_message_id
 
@@ -227,6 +215,7 @@ class EmailIndex:
                 root_message_id,
             ),
         )
+        self.conn.commit()
 
     def find_thread(self, target_message_id: str):
         messages = self.conn.execute(

@@ -66,11 +66,21 @@ class EmailMessage:
 
     @property
     def body(self) -> str:
-        payload = self._email.get_payload(decode=True)
-        if payload:
-            return payload.decode("utf-8", errors="ignore")
+        if self._email.is_multipart():
+            # For multipart messages, find the first text/plain part
+            # This comes up for signed messages
+            for part in self._email.walk():
+                if part.get_content_type() == "text/plain":
+                    payload = part.get_payload(decode=True)
+                    if payload:
+                        return payload.decode("utf-8", errors="ignore")
+            raise Exception("no body found")
         else:
-            return str(self._email.get_payload())
+            # For single-part messages
+            payload = self._email.get_payload(decode=True)
+            if payload:
+                return payload.decode("utf-8", errors="ignore")
+            raise Exception("no body found")
 
     @property
     def body_html(self) -> str:

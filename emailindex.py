@@ -138,8 +138,7 @@ class EmailIndex:
         commit = self.repo[commit_id]
         for entry in commit.tree:
             if entry.type == pygit2.GIT_OBJECT_BLOB:
-                git_oid = str(entry.id)
-                return EmailMessage.from_oid(git_oid, self.repo)
+                return EmailMessage.from_oid(entry.id, self.repo)
         raise Exception("No commit found")
 
     def _get_commits(self):

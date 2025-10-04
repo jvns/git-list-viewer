@@ -17,13 +17,7 @@ def get_thread_messages(message_id):
 
         if not containers:
             return None
-
-        # Convert containers to message format expected by the frontend
-        messages = []
-        _flatten(containers, messages)
-
-        return messages
-
+        return list(_flatten(containers))
 
 def _normalize_subject(subject):
     return re.sub(r"^(Re|Fwd|Fw):\s*", "", subject, flags=re.IGNORECASE).strip()
@@ -38,22 +32,21 @@ def _display_subject(msg, parent_subject, level):
             display_subject = ""
     return display_subject
 
-def _flatten(containers, messages, level=0, parent_subject=None):
+def _flatten(containers, level=0, parent_subject=None):
     for container in containers:
         if hasattr(container, 'message') and container.message:
             msg = container.message
             msg.display_subject = _display_subject(msg, parent_subject, level)
             msg.level = level
-            messages.append(msg)
+            yield msg
 
             # Process children, passing current subject as parent
             if hasattr(container, 'children') and container.children:
-                _flatten(container.children, messages, level + 1, msg.subject)
+                yield from _flatten(container.children, level + 1, msg.subject)
         else:
-            print('hi')
             # Dummy container - process children with same parent subject
             if hasattr(container, 'children') and container.children:
-                _flatten(container.children, messages, level, parent_subject)
+                yield from _flatten(container.children, level, parent_subject)
 
 
 def search(search_query=None):

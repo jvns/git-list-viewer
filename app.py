@@ -2,14 +2,14 @@
 
 import os
 from flask import Flask, render_template, redirect, url_for, request
-from mbox_handler import get_thread_messages, get_all_cached_threads, force_refresh_thread
+from mbox_handler import get_thread_messages, search, force_refresh_thread
 
 app = Flask(__name__)
 
 @app.route("/")
 def index():
     search_query = request.args.get('search', '').strip()
-    cached_threads = get_all_cached_threads(search_query if search_query else None)
+    cached_threads = search(search_query if search_query else None)
     return render_template("index.html", cached_threads=cached_threads)
 
 

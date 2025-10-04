@@ -20,7 +20,7 @@ def get_thread_messages(message_id):
 
         # Convert containers to message format expected by the frontend
         messages = []
-        _flatten_containers_to_messages(containers, messages)
+        _flatten(containers, messages)
 
         return messages
 
@@ -29,30 +29,31 @@ def _normalize_subject(subject):
     return re.sub(r"^(Re|Fwd|Fw):\s*", "", subject, flags=re.IGNORECASE).strip()
 
 
-def _flatten_containers_to_messages(containers, messages, level=0, parent_subject=None):
+def _display_subject(msg, parent_subject, level):
+    display_subject = msg.subject
+    if parent_subject and level > 0:
+        parent_normalized = _normalize_subject(parent_subject)
+        current_normalized = _normalize_subject(msg.subject)
+        if parent_normalized and parent_normalized in current_normalized:
+            display_subject = ""
+    return display_subject
+
+def _flatten(containers, messages, level=0, parent_subject=None):
     for container in containers:
         if hasattr(container, 'message') and container.message:
             msg = container.message
-
-            # Calculate display subject (hide redundant subjects)
-            display_subject = msg.subject
-            if parent_subject and level > 0:
-                parent_normalized = _normalize_subject(parent_subject)
-                current_normalized = _normalize_subject(msg.subject)
-                if parent_normalized and parent_normalized in current_normalized:
-                    display_subject = ""
-
-            msg.display_subject = display_subject
+            msg.display_subject = _display_subject(msg, parent_subject, level)
             msg.level = level
             messages.append(msg)
 
             # Process children, passing current subject as parent
             if hasattr(container, 'children') and container.children:
-                _flatten_containers_to_messages(container.children, messages, level + 1, msg.subject)
+                _flatten(container.children, messages, level + 1, msg.subject)
         else:
+            print('hi')
             # Dummy container - process children with same parent subject
             if hasattr(container, 'children') and container.children:
-                _flatten_containers_to_messages(container.children, messages, level, parent_subject)
+                _flatten(container.children, messages, level, parent_subject)
 
 
 def search(search_query=None):

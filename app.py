@@ -9,8 +9,8 @@ app = Flask(__name__)
 @app.route("/")
 def index():
     search_query = request.args.get('search', '').strip()
-    cached_threads = search(search_query if search_query else None)
-    return render_template("index.html", cached_threads=cached_threads)
+    threads = search(search_query if search_query else None)
+    return render_template("index.html", threads=threads)
 
 @app.route("/<path:message_id>/")
 def view_message_by_id(message_id):

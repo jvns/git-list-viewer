@@ -29,11 +29,10 @@
         </form>
       </div>
       <div style="padding: 30px;">
-        {% if cached_threads %}
         <div style="margin-top: 40px;">
           <h2>Search results</h2>
           <div style="margin-top: 20px;">
-            {% for thread in cached_threads %}
+            {% for thread in threads %}
             <div
               style="border: 1px solid #ddd; border-radius: 5px; padding: 15px; margin-bottom: 10px; background: #fafafa;">
               <div style="margin-bottom: 8px;">
@@ -54,12 +53,6 @@
             {% endfor %}
           </div>
         </div>
-        {% else %}
-        <div style="margin-top: 40px;">
-          <h2>Cached Threads</h2>
-          <p style="color: #666; font-style: italic;">No threads cached yet. Visit a thread to cache it.</p>
-        </div>
-        {% endif %}
       </div>
     </div>
   </div>

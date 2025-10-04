@@ -19,7 +19,7 @@
           {{ message.date.strftime('%Y-%m-%d %H:%M') }}&nbsp;&nbsp;{% if message.level and message.level
           > 0 %}{% for i in range(message.level) %}&nbsp;&nbsp;{% endfor %}<span style="color: #999;">└─&nbsp;</span>{%
           endif %}{% if message.display_subject %}{{ message.display_subject }}&nbsp;&nbsp;{% endif %}{{
-          message.from_name if message.from_name else message.from_addr }}
+          message.from_name }}
         </div>
       </li>
       {% endfor %}

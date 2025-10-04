@@ -41,8 +41,8 @@ class EmailMessage:
     @property
     def from_name(self) -> str:
         from_header = str(self._email.get("From"))
-        name, _ = email.utils.parseaddr(from_header)
-        return name
+        name, addr = email.utils.parseaddr(from_header)
+        return name if name else addr
 
     @property
     def from_addr(self) -> str:

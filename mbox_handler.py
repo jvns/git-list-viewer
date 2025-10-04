@@ -103,7 +103,7 @@ def search(search_query=None):
                 'message_id': row['message_id'],
                 'subject': row['subject'],
                 'from': f"{row['from_name']} <{row['from_addr']}>",
-                'date': datetime.fromtimestamp(row['date_sent']).isoformat(),
+                'date': datetime.fromtimestamp(row['date_sent']).strftime('%Y-%m-%d'),
                 'message_count': row['thread_count']
             })
 

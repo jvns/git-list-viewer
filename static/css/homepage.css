@@ -61,7 +61,6 @@
       color: #007acc;
       text-decoration: none;
       font-weight: 500;
-      margin-bottom: 8px;
       &:hover {
         text-decoration: underline;
       }

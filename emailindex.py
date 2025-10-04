@@ -107,21 +107,15 @@ class EmailIndex:
         self._create_tables()
         self.repo = pygit2.Repository(git_repo_path)
 
-    def _calculate_root_message_id(
-        self, msg: EmailMessage, msg_root_mapping: Dict[str, str]
-    ) -> str:
+    def _calculate_root_message_id(self, msg: EmailMessage) -> str:
         if not msg.references:
+            # It's the start of a thread
             return msg.message_id
         else:
             first_ref = msg.references[0]
-            # First check in-memory mapping (for current run)
-            if first_ref in msg_root_mapping:
-                return msg_root_mapping[first_ref]
-            # Then check database (for existing messages)
-            root_from_db = self._get_root_message_id_from_db(first_ref)
-            if root_from_db:
+            if root_from_db := self._get_root_message_id_from_db(first_ref):
                 return root_from_db
-            # Fallback: use the reference itself as root
+            # It's the first reply
             return first_ref
 
     def _create_tables(self):
@@ -168,17 +162,14 @@ class EmailIndex:
         self.repo.remotes["origin"].fetch()
 
         commits = self._get_commits()
-        msg_root_mapping = {}
         for commit in tqdm(commits):
-            self._add_message_to_db(str(commit.id), msg_root_mapping)
+            self._add_message_to_db(str(commit.id))
 
         logger.info(f"Indexing complete: {len(commits)} new messages added")
 
-    def _add_message_to_db(self, commit_id, msg_root_mapping):
+    def _add_message_to_db(self, commit_id):
         msg = self._get_email_message_from_commit(commit_id)
-        root_message_id = self._calculate_root_message_id(msg, msg_root_mapping)
-        msg_root_mapping[msg.message_id] = root_message_id
-
+        root_message_id = self._calculate_root_message_id(msg)
         self.conn.execute(
             """
             INSERT OR REPLACE INTO messages

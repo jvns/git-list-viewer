@@ -161,14 +161,14 @@ class EmailIndex:
         result = cursor.fetchone()
         return result[0] if result else None
 
-    def _get_email_message_from_commit(self, commit_id: str) -> Optional[EmailMessage]:
+    def _get_email_message_from_commit(self, commit_id: str) -> EmailMessage:
         """Get the EmailMessage from the single blob in a commit"""
         commit = self.repo[commit_id]
         for entry in commit.tree:
             if entry.type == pygit2.GIT_OBJECT_BLOB:
                 git_oid = str(entry.id)
                 return EmailMessage.from_oid(git_oid, self.repo)
-        return None
+        raise Exception("No commit found")
 
     def _get_commits(self):
         start_commit = self.repo.references["refs/heads/master"].peel(pygit2.Commit)
@@ -188,7 +188,7 @@ class EmailIndex:
         self.repo.remotes["origin"].fetch()
         logger.info("Done")
 
-        commits = self._get_commits(branch)
+        commits = self._get_commits()
 
         # Dictionary to track message_id -> root_message_id mappings for current run
         msg_root_mapping = {}
@@ -197,18 +197,17 @@ class EmailIndex:
         new_count = 0
         for commit in commits:
             commit_id = str(commit.id)
-            email_msg = self._get_email_message_from_commit(commit_id)
-            if email_msg:
-                self._add_message_to_db(email_msg, commit_id, msg_root_mapping)
-                count += 1
-                new_count += 1
-                if count % 100 == 0:
-                    logger.info(f"Processed {count} total, {new_count} new messages...")
+            self._add_message_to_db(commit_id, msg_root_mapping)
+            count += 1
+            new_count += 1
+            if count % 100 == 0:
+                logger.info(f"Processed {count} total, {new_count} new messages...")
 
         logger.info(f"Indexing complete: {new_count} new messages added")
         self.conn.commit()
 
-    def _add_message_to_db(self, msg, commit_id, msg_root_mapping):
+    def _add_message_to_db(self, commit_id, msg_root_mapping):
+        msg = self._get_email_message_from_commit(commit_id)
         if not msg.message_id:
             return
 

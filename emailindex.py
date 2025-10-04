@@ -78,17 +78,19 @@ class EmailMessage:
         import html
 
         body_text = self.body
-        lines = body_text.split('\n')
+        lines = body_text.split("\n")
         processed_lines = []
 
         for line in lines:
             escaped_line = html.escape(line)
-            if line.strip().startswith('>'):
-                processed_lines.append(f'<span class="quoted-text">{escaped_line}</span>')
+            if line.strip().startswith(">"):
+                processed_lines.append(
+                    f'<span class="quoted-text">{escaped_line}</span>'
+                )
             else:
                 processed_lines.append(escaped_line)
 
-        return '\n'.join(processed_lines)
+        return "\n".join(processed_lines)
 
     @classmethod
     def from_oid(cls, git_oid, repo):
@@ -154,8 +156,7 @@ class EmailIndex:
     def _get_root_message_id_from_db(self, message_id: str) -> Optional[str]:
         """Query database to get root message ID for a given message ID"""
         cursor = self.conn.execute(
-            "SELECT root_message_id FROM messages WHERE message_id = ?",
-            (message_id,)
+            "SELECT root_message_id FROM messages WHERE message_id = ?", (message_id,)
         )
         result = cursor.fetchone()
         return result[0] if result else None
@@ -169,26 +170,25 @@ class EmailIndex:
                 return EmailMessage.from_oid(git_oid, self.repo)
         return None
 
-    def index_git_repo(self, branch: str = "refs/heads/master"):
-        logger.info("Running git fetch to update repository...")
-        self.repo.remotes['origin'].fetch()
-        start_commit = self.repo.references[branch].peel(pygit2.Commit)
-
-        # Find where we left off to avoid walking unnecessary commits
-
-        latest_commit_id = self._get_latest_processed_commit_id()
-        commits = list(
-            self.repo.walk(
-                start_commit.id, pygit2.GIT_SORT_TOPOLOGICAL | pygit2.GIT_SORT_REVERSE
-            )
+    def _get_commits(self):
+        start_commit = self.repo.references["refs/heads/master"].peel(pygit2.Commit)
+        walker = self.repo.walk(
+            start_commit.id, pygit2.GIT_SORT_TOPOLOGICAL | pygit2.GIT_SORT_REVERSE
         )
+
+        # Ignore commits that have already been processed
+        latest_commit_id = self._get_latest_processed_commit_id()
         if latest_commit_id:
-            for idx, c in enumerate(commits):
-                if str(c.id) == str(latest_commit_id):
-                    commits = commits[idx + 1:]
-                    break
-            else:
-                raise Exception("didn't find " + latest_commit_id)
+            walker.hide(latest_commit_id)
+
+        return list(walker)
+
+    def index_git_repo(self):
+        logger.info("Running git fetch to update repository...")
+        self.repo.remotes["origin"].fetch()
+        logger.info("Done")
+
+        commits = self._get_commits(branch)
 
         # Dictionary to track message_id -> root_message_id mappings for current run
         msg_root_mapping = {}

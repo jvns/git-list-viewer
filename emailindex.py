@@ -101,13 +101,17 @@ class EmailMessage:
 
 class EmailIndex:
     def __init__(self, db_path: str, git_repo_path):
-        self.db_path = Path(db_path)
-        self.conn = sqlite3.connect(str(self.db_path))
+        self.conn = sqlite3.connect(db_path)
         self.conn.row_factory = sqlite3.Row
         self._create_tables()
         self.repo = pygit2.Repository(git_repo_path)
 
-    def _calculate_root_message_id(self, msg: EmailMessage) -> str:
+    def _create_tables(self):
+        with open("schema.sql", "r") as f:
+            self.conn.executescript(f.read())
+        self.conn.commit()
+
+    def _get_root_message_id(self, msg: EmailMessage) -> str:
         if not msg.references:
             # It's the start of a thread
             return msg.message_id
@@ -117,11 +121,6 @@ class EmailIndex:
                 return root_from_db
             # It's the first reply
             return first_ref
-
-    def _create_tables(self):
-        with open("schema.sql", "r") as f:
-            self.conn.executescript(f.read())
-        self.conn.commit()
 
     def _get_latest_processed_commit_id(self) -> Optional[str]:
         cursor = self.conn.execute(
@@ -137,7 +136,7 @@ class EmailIndex:
         result = cursor.fetchone()
         return result[0] if result else None
 
-    def _get_email_message_from_commit(self, commit_id: str) -> EmailMessage:
+    def _get_email_message(self, commit_id: str) -> EmailMessage:
         commit = self.repo[commit_id]
         for entry in commit.tree:
             if entry.type == pygit2.GIT_OBJECT_BLOB:
@@ -163,13 +162,13 @@ class EmailIndex:
 
         commits = self._get_commits()
         for commit in tqdm(commits):
-            self._add_message_to_db(str(commit.id))
+            self._add_message(str(commit.id))
 
         logger.info(f"Indexing complete: {len(commits)} new messages added")
 
-    def _add_message_to_db(self, commit_id):
-        msg = self._get_email_message_from_commit(commit_id)
-        root_message_id = self._calculate_root_message_id(msg)
+    def _add_message(self, commit_id):
+        msg = self._get_email_message(commit_id)
+        root_message_id = self._get_root_message_id(msg)
         self.conn.execute(
             """
             INSERT OR REPLACE INTO messages
@@ -202,7 +201,7 @@ class EmailIndex:
 
         email_objects = []
         for msg in messages:
-            email_msg = self._get_email_message_from_commit(msg["commit_id"])
+            email_msg = self._get_email_message(msg["commit_id"])
             if email_msg:
                 email_objects.append(email_msg)
         return thread(email_objects)

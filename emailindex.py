@@ -112,8 +112,14 @@ class EmailIndex:
             return msg.message_id
         else:
             first_ref = msg.references[0]
+            # First check in-memory mapping (for current run)
             if first_ref in msg_root_mapping:
                 return msg_root_mapping[first_ref]
+            # Then check database (for existing messages)
+            root_from_db = self._get_root_message_id_from_db(first_ref)
+            if root_from_db:
+                return root_from_db
+            # Fallback: use the reference itself as root
             return first_ref
 
     def _create_tables(self):
@@ -125,18 +131,44 @@ class EmailIndex:
                 from_addr TEXT,
                 from_name TEXT,
                 date_sent INTEGER,
-                git_oid TEXT,
+                commit_id TEXT,
                 root_message_id TEXT
             )
         """
         )
 
-        # Create index on git_oid for faster lookups during incremental indexing
+        # Create index on commit_id for faster lookups during incremental indexing
         self.conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_git_oid ON messages (git_oid)"
+            "CREATE INDEX IF NOT EXISTS idx_commit_id ON messages (commit_id)"
         )
 
         self.conn.commit()
+
+    def _get_latest_processed_commit_id(self) -> Optional[str]:
+        """Get the commit_id of the last processed message using rowid"""
+        cursor = self.conn.execute(
+            "SELECT commit_id FROM messages ORDER BY rowid DESC LIMIT 1"
+        )
+        result = cursor.fetchone()
+        return result[0] if result else None
+
+    def _get_root_message_id_from_db(self, message_id: str) -> Optional[str]:
+        """Query database to get root message ID for a given message ID"""
+        cursor = self.conn.execute(
+            "SELECT root_message_id FROM messages WHERE message_id = ?",
+            (message_id,)
+        )
+        result = cursor.fetchone()
+        return result[0] if result else None
+
+    def _get_email_message_from_commit(self, commit_id: str) -> Optional[EmailMessage]:
+        """Get the EmailMessage from the single blob in a commit"""
+        commit = self.repo[commit_id]
+        for entry in commit.tree:
+            if entry.type == pygit2.GIT_OBJECT_BLOB:
+                git_oid = str(entry.id)
+                return EmailMessage.from_oid(git_oid, self.repo)
+        return None
 
     def index_git_repo(self, branch: str = "refs/heads/master"):
         logger.info("Running git fetch to update repository...")
@@ -152,34 +184,43 @@ class EmailIndex:
         except subprocess.CalledProcessError as e:
             logger.warning(f"Git fetch failed: {e.stderr}")
 
-        commit = self.repo.references[branch].peel(pygit2.Commit)
+        start_commit = self.repo.references[branch].peel(pygit2.Commit)
+
+        # Find where we left off to avoid walking unnecessary commits
+
+        latest_commit_id = self._get_latest_processed_commit_id()
         commits = list(
             self.repo.walk(
-                commit.id, pygit2.GIT_SORT_TOPOLOGICAL | pygit2.GIT_SORT_REVERSE
+                start_commit.id, pygit2.GIT_SORT_TOPOLOGICAL | pygit2.GIT_SORT_REVERSE
             )
         )
+        if latest_commit_id:
+            for idx, c in enumerate(commits):
+                if str(c.id) == str(latest_commit_id):
+                    commits = commits[idx + 1:]
+                    break
+            else:
+                raise Exception("didn't find " + latest_commit_id)
 
-        # Dictionary to track message_id -> root_message_id mappings
+        # Dictionary to track message_id -> root_message_id mappings for current run
         msg_root_mapping = {}
 
         count = 0
+        new_count = 0
         for commit in commits:
-            for entry in commit.tree:
-                if entry.type == pygit2.GIT_OBJECT_BLOB:
-                    blob = self.repo[entry.id]
-                    self._add_message_to_db(blob, str(entry.id), msg_root_mapping)
-                    count += 1
-                    if count % 100 == 0:
-                        logger.info(f"Indexed {count} messages...")
+            commit_id = str(commit.id)
+            email_msg = self._get_email_message_from_commit(commit_id)
+            if email_msg:
+                self._add_message_to_db(email_msg, commit_id, msg_root_mapping)
+                count += 1
+                new_count += 1
+                if count % 100 == 0:
+                    logger.info(f"Processed {count} total, {new_count} new messages...")
 
+        logger.info(f"Indexing complete: {new_count} new messages added")
         self.conn.commit()
 
-    def _add_message_to_db(self, blob, git_oid, msg_root_mapping):
-        raw_email = blob.data
-        if not (b"Message-ID:" in raw_email or b"From:" in raw_email):
-            return
-
-        msg = EmailMessage.from_oid(git_oid, self.repo)
+    def _add_message_to_db(self, msg, commit_id, msg_root_mapping):
         if not msg.message_id:
             return
 
@@ -189,7 +230,7 @@ class EmailIndex:
         self.conn.execute(
             """
             INSERT OR REPLACE INTO messages
-            (message_id, subject, from_addr, from_name, date_sent, git_oid, root_message_id)
+            (message_id, subject, from_addr, from_name, date_sent, commit_id, root_message_id)
             VALUES (?, ?, ?, ?, ?, ?, ?)
         """,
             (
@@ -198,7 +239,7 @@ class EmailIndex:
                 msg.from_addr,
                 msg.from_name,
                 int(msg.date.timestamp()),
-                git_oid,
+                commit_id,
                 root_message_id,
             ),
         )
@@ -206,7 +247,7 @@ class EmailIndex:
     def find_thread(self, target_message_id: str):
         messages = self.conn.execute(
             """
-            SELECT git_oid FROM messages
+            SELECT commit_id FROM messages
             WHERE root_message_id = (
                 SELECT root_message_id FROM messages WHERE message_id = ?
             )
@@ -215,9 +256,11 @@ class EmailIndex:
             (target_message_id,),
         ).fetchall()
 
-        email_objects = [
-            EmailMessage.from_oid(msg["git_oid"], self.repo) for msg in messages
-        ]
+        email_objects = []
+        for msg in messages:
+            email_msg = self._get_email_message_from_commit(msg["commit_id"])
+            if email_msg:
+                email_objects.append(email_msg)
         return thread(email_objects)
 
     def __enter__(self):

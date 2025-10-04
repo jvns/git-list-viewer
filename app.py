@@ -22,7 +22,7 @@ def view_message_by_id(message_id):
         messages = index.find_thread(message_id)
 
     if not messages:
-        return f"Could not download thread for message ID {message_id}", 404
+        return f"Could not find thread for message ID {message_id}", 404
 
     return render_template(
         "thread.html",

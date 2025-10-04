@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import os
-from flask import Flask, render_template, redirect, url_for, request
+from flask import Flask, render_template, request
 from mbox_handler import get_thread_messages, search
 
 app = Flask(__name__)

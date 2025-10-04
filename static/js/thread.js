@@ -28,12 +28,12 @@ function setupMessageObserver() {
       }
     }
   }, {
-    root: document.getElementById('main-content'),
+    root: document.querySelector('main'),
     rootMargin: '-10% 0px -90% 0px',
     threshold: 0
   });
 
-  document.querySelectorAll('.email-message').forEach(el => observer.observe(el));
+  document.querySelectorAll('section').forEach(el => observer.observe(el));
 }
 
 // Handle URL hash on page load

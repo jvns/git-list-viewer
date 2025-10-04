@@ -25,12 +25,12 @@
     </ul>
   </div>
 
-  <main id="main-content">
+  <main>
     {% for message in messages %}
-    <section class="email-message" id="msg-{{ message.sanitized_message_id }}">
+    <section id="msg-{{ message.sanitized_message_id }}">
       <h2>
-        <div class="email-subject">{{ message.subject }}</div>
-        <div class="email-meta">
+        <div class="subject">{{ message.subject }}</div>
+        <div class="meta">
           <span class="author-name">{{ message.from_name }}</span> &nbsp;&nbsp; {{ message.date.strftime('%Y-%m-%d
           %H:%M') }}
         </div>

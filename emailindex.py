@@ -10,7 +10,8 @@ from typing import List, Dict, Optional
 from pathlib import Path
 import logging
 import pygit2
-import subprocess
+
+from tqdm import tqdm
 from jwz_threading import thread
 
 logging.basicConfig(level=logging.INFO)
@@ -195,13 +196,9 @@ class EmailIndex:
 
         count = 0
         new_count = 0
-        for commit in commits:
+        for commit in tqdm(commits):
             commit_id = str(commit.id)
             self._add_message_to_db(commit_id, msg_root_mapping)
-            count += 1
-            new_count += 1
-            if count % 100 == 0:
-                logger.info(f"Processed {count} total, {new_count} new messages...")
 
         logger.info(f"Indexing complete: {new_count} new messages added")
         self.conn.commit()

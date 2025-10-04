@@ -8,8 +8,9 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 
-<body>
+<body id="thread">
   <div class="sidebar">
+    <h2> Messages ({{messages|length}})</h2>
     <ul>
       {% for message in messages %}
       <li class="message-item {% if loop.index0 == 0 %}selected{% endif %}"
@@ -31,7 +32,7 @@
       <h2>
         <div class="subject">{{ message.subject }}</div>
         <div class="meta">
-          <span class="author-name">{{ message.from_name }}</span> &nbsp;&nbsp; {{ message.date.strftime('%Y-%m-%d
+          <span class="author">{{ message.from_name }}</span> &nbsp;&nbsp; {{ message.date.strftime('%Y-%m-%d
           %H:%M') }}
         </div>
       </h2>

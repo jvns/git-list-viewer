@@ -34,7 +34,7 @@ def _display_subject(msg, parent_subject, level):
 
 def _flatten(containers, level=0, parent_subject=None):
     for container in containers:
-        if hasattr(container, 'message') and container.message:
+        if hasattr(container, 'message'):
             msg = container.message
             msg.display_subject = _display_subject(msg, parent_subject, level)
             msg.level = level

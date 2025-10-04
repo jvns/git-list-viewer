@@ -123,17 +123,15 @@ class EmailIndex:
             return first_ref
 
     def _get_latest_processed_commit_id(self) -> Optional[str]:
-        cursor = self.conn.execute(
+        result = self.conn.execute(
             "SELECT commit_id FROM messages ORDER BY rowid DESC LIMIT 1"
-        )
-        result = cursor.fetchone()
+        ).fetchone()
         return result[0] if result else None
 
     def _get_root_message_id_from_db(self, message_id: str) -> Optional[str]:
-        cursor = self.conn.execute(
+        result = self.conn.execute(
             "SELECT root_message_id FROM messages WHERE message_id = ?", (message_id,)
-        )
-        result = cursor.fetchone()
+        ).fetchone()
         return result[0] if result else None
 
     def _get_email_message(self, commit_id: str) -> EmailMessage:

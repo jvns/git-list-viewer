@@ -131,6 +131,11 @@ class EmailIndex:
         """
         )
 
+        # Create index on git_oid for faster lookups during incremental indexing
+        self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_git_oid ON messages (git_oid)"
+        )
+
         self.conn.commit()
 
     def index_git_repo(self, branch: str = "refs/heads/master"):

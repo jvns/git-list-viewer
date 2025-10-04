@@ -125,25 +125,8 @@ class EmailIndex:
             return first_ref
 
     def _create_tables(self):
-        self.conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS messages (
-                message_id TEXT PRIMARY KEY,
-                subject TEXT,
-                from_addr TEXT,
-                from_name TEXT,
-                date_sent INTEGER,
-                commit_id TEXT,
-                root_message_id TEXT
-            )
-        """
-        )
-
-        # Create index on commit_id for faster lookups during incremental indexing
-        self.conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_commit_id ON messages (commit_id)"
-        )
-
+        with open("schema.sql", "r") as f:
+            self.conn.executescript(f.read())
         self.conn.commit()
 
     def _get_latest_processed_commit_id(self) -> Optional[str]:

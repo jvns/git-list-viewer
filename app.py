@@ -2,7 +2,7 @@
 
 import os
 from flask import Flask, render_template, redirect, url_for, request
-from mbox_handler import get_thread_messages, search, force_refresh_thread
+from mbox_handler import get_thread_messages, search
 
 app = Flask(__name__)
 
@@ -11,14 +11,6 @@ def index():
     search_query = request.args.get('search', '').strip()
     cached_threads = search(search_query if search_query else None)
     return render_template("index.html", cached_threads=cached_threads)
-
-
-@app.route("/refresh/<path:message_id>/")
-def force_refresh(message_id):
-    """Force refresh a specific thread"""
-    force_refresh_thread(message_id)
-    return redirect(url_for('view_message_by_id', message_id=message_id))
-
 
 @app.route("/<path:message_id>/")
 def view_message_by_id(message_id):

@@ -108,10 +108,3 @@ def search(search_query=None):
             })
 
         return threads
-
-
-def force_refresh_thread(message_id):
-    """Force refresh is not needed with git backend - data is always current"""
-    # For git backend, we don't need to refresh individual threads
-    # The git repository itself would need to be re-indexed
-    return get_thread_messages(message_id)

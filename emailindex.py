@@ -171,18 +171,7 @@ class EmailIndex:
 
     def index_git_repo(self, branch: str = "refs/heads/master"):
         logger.info("Running git fetch to update repository...")
-        try:
-            subprocess.run(
-                ["git", "fetch", "origin"],
-                cwd=self.repo.workdir,
-                check=True,
-                capture_output=True,
-                text=True
-            )
-            logger.info("Git fetch completed successfully")
-        except subprocess.CalledProcessError as e:
-            logger.warning(f"Git fetch failed: {e.stderr}")
-
+        self.repo.remotes['origin'].fetch()
         start_commit = self.repo.references[branch].peel(pygit2.Commit)
 
         # Find where we left off to avoid walking unnecessary commits

@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
 import os
+import threading
+import time
 from flask import Flask, render_template, request
 from emailindex import EmailIndex
 from search import search
@@ -9,6 +11,16 @@ app = Flask(__name__)
 
 DB_PATH = os.environ.get('EMAIL_DB_PATH', 'emails.db')
 REPO_PATH = os.environ.get('GIT_REPO_PATH', os.path.expanduser('~/clones/1.git'))
+
+def background_indexer():
+    while True:
+        try:
+            with EmailIndex(DB_PATH, REPO_PATH) as index:
+                index.index_git_repo()
+        except Exception as e:
+            print(f"Background reindex failed: {e}")
+
+        time.sleep(300)
 
 @app.route("/")
 def index():
@@ -31,5 +43,7 @@ def view_message_by_id(message_id):
 
 
 if __name__ == "__main__":
+    threading.Thread(target=background_indexer, daemon=True).start()
+
     port = int(os.environ.get("PORT", 5000))
     app.run(debug=True, host="0.0.0.0", port=port)

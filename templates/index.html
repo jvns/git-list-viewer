@@ -4,10 +4,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/homepage.css') }}">
   <title>Git Mailing List Viewer</title>
 </head>
 
-<body>
+<body id="homepage">
   <h1>Git Mailing List Viewer</h1>
   <form method="GET">
     <input type="text" name="search" placeholder="Search subject or sender..."
@@ -22,9 +23,9 @@
   {% for thread in threads %}
   <div class="thread">
     <a href="/{{ thread.message_id }}/">{{ thread.subject }}</a>
-    <strong>From:</strong> {{ thread.from }}
-    <strong>Date:</strong> {{ thread.date }}
-    <strong>Messages:</strong> {{ thread.message_count }}
+    <span><strong>From:</strong> {{ thread.from }}</span>
+    <span><strong>Date:</strong> {{ thread.date }}</span>
+    <span><strong>Messages:</strong> {{ thread.message_count }}</span>
   </div>
   {% endfor %}
 </body>

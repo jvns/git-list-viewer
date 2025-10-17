@@ -16,6 +16,15 @@ Some caveats:
 - It uses a 14-year-old Python library to handle the threading
   ([jwzthreading](https://github.com/akuchling/jwzthreading))
 
+## Features
+
+- The list of emails in the thread are in a sidebar so you can navigate more easily
+- The sidebar automatically updates as you scroll
+- You can use Ctrl+F to find something in a thread
+- You can use j/k to navigate up/down in the thread
+- It uses the same IDs as https://lore.kernel.org/git, so you can just replace
+  the domain in a lore.kernel.org link to get a different view
+
 ## Developing
 
 First clone the Git repository which contains the Git mailing list emails

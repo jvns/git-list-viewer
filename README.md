@@ -9,8 +9,12 @@ Some caveats:
 
 - Some of the code is LLM generated and not very carefully thought through.
   Specifically the search is not very good at all.
+- I did not look at the the public-inbox documentation even once while writing
+  this
 - It only includes "newer" emails from https://lore.kernel.org/git/1, not the
   older ones from https://lore.kernel.org/git/0
+- It uses a 14-year-old Python library to handle the threading
+  ([jwzthreading](https://github.com/akuchling/jwzthreading))
 
 ## Developing
 

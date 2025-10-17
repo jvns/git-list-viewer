@@ -4,6 +4,7 @@ import os
 import threading
 import time
 from flask import Flask, render_template, request
+from flask_httpauth import HTTPBasicAuth
 from emailindex import EmailIndex
 from search import search
 
@@ -11,6 +12,13 @@ DB_PATH = os.environ.get('EMAIL_DB_PATH', 'emails.db')
 REPO_PATH = os.environ.get('GIT_REPO_PATH', os.path.expanduser('~/clones/1.git'))
 
 app = Flask(__name__)
+auth = HTTPBasicAuth()
+
+@auth.verify_password
+def verify_password(username, password):
+    if os.environ.get('PASSWORD'):
+        return password == os.environ.get('PASSWORD')
+    return True  # No auth if PASSWORD not set
 
 def background_indexer():
     while True:
@@ -23,12 +31,14 @@ def background_indexer():
         time.sleep(300)
 
 @app.route("/")
+@auth.login_required
 def index():
     search_query = request.args.get('search', '').strip()
     threads = search(DB_PATH, REPO_PATH, search_query if search_query else None)
     return render_template("index.html", threads=threads)
 
 @app.route("/<path:message_id>/")
+@auth.login_required
 def view_message_by_id(message_id):
     with EmailIndex(DB_PATH, REPO_PATH) as index:
         messages = index.find_thread(message_id)

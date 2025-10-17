@@ -7,10 +7,10 @@ from flask import Flask, render_template, request
 from emailindex import EmailIndex
 from search import search
 
-app = Flask(__name__)
-
 DB_PATH = os.environ.get('EMAIL_DB_PATH', 'emails.db')
 REPO_PATH = os.environ.get('GIT_REPO_PATH', os.path.expanduser('~/clones/1.git'))
+
+app = Flask(__name__)
 
 def background_indexer():
     while True:
@@ -41,9 +41,9 @@ def view_message_by_id(message_id):
         messages=messages,
     )
 
+# Start background indexer when module is imported (works with both gunicorn and direct execution)
+threading.Thread(target=background_indexer, daemon=True).start()
 
 if __name__ == "__main__":
-    threading.Thread(target=background_indexer, daemon=True).start()
-
     port = int(os.environ.get("PORT", 5000))
     app.run(debug=True, host="0.0.0.0", port=port)

@@ -10,6 +10,7 @@ from typing import List, Optional
 import logging
 import pygit2
 
+import sys
 from tqdm import tqdm
 from jwzthreading import thread, Message
 
@@ -181,7 +182,13 @@ class EmailIndex:
         self.repo.remotes["origin"].fetch()
 
         commits = self._get_commits()
-        for commit in tqdm(commits):
+
+        if sys.stdout.isatty():
+            commit_iter = tqdm(commits)
+        else:
+            commit_iter = commits
+
+        for commit in commit_iter:
             self._add_message(str(commit.id))
 
         logger.info(f"Indexing complete: {len(commits)} new messages added")

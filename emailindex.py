@@ -11,7 +11,7 @@ import logging
 import pygit2
 
 from tqdm import tqdm
-from jwz_threading import thread
+from jwzthreading import thread, Message
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -106,6 +106,20 @@ class EmailMessage:
     def from_oid(cls, git_oid, repo):
         blob = repo[git_oid]
         return cls(blob.data)
+
+    def normalize_subject(self, subject: str) -> str:
+        """Strip Re:/Fwd: prefixes from subject"""
+        return re.sub(r"^(Re|Fwd|Fw):\s*", "", subject, flags=re.IGNORECASE).strip()
+
+    def get_display_subject(self, parent_subject: str = None, level: int = 0) -> str:
+        """Get display subject, hiding it if substantially same as parent"""
+        display_subject = self.subject
+        if parent_subject and level > 0:
+            parent_normalized = self.normalize_subject(parent_subject)
+            current_normalized = self.normalize_subject(self.subject)
+            if parent_normalized and parent_normalized in current_normalized:
+                display_subject = ""
+        return display_subject
 
 
 class EmailIndex:
@@ -206,7 +220,46 @@ class EmailIndex:
         ).fetchall()
 
         email_objects = [self._get_email_message(msg["commit_id"]) for msg in messages]
-        return thread(email_objects)
+
+        # Convert EmailMessage objects to jwzthreading.Message objects
+        jwz_messages = []
+        for email_obj in email_objects:
+            jwz_msg = Message(email_obj)
+            jwz_msg.message_id = email_obj.message_id
+            jwz_msg.subject = email_obj.subject
+            jwz_msg.references = email_obj.references
+            jwz_messages.append(jwz_msg)
+
+        # Use jwzthreading to build the thread structure
+        subject_table = thread(jwz_messages)
+
+        # Convert back to a flat list for compatibility
+        return self._flatten_subject_table(subject_table)
+
+    def _flatten_subject_table(self, subject_table):
+        """Convert jwzthreading subject table to flat list of messages"""
+        flattened = []
+
+        def traverse_container(container, level=0, parent_subject=None):
+            if container.message:
+                # Extract the original EmailMessage from the Message wrapper
+                email_obj = container.message.message
+                email_obj.level = level
+                email_obj.display_subject = email_obj.get_display_subject(parent_subject, level)
+                flattened.append(email_obj)
+                current_subject = email_obj.subject
+            else:
+                current_subject = parent_subject
+
+            # Traverse children
+            for child in container.children:
+                traverse_container(child, level + 1, current_subject)
+
+        # Process all subjects in the table
+        for subject, root_container in subject_table.items():
+            traverse_container(root_container)
+
+        return flattened
 
     def __enter__(self):
         return self

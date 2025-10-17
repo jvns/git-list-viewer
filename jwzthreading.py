@@ -20,7 +20,7 @@ To use:
 Copyright (c) 2003-2010, A.M. Kuchling.
 
 This code is under a BSD-style license; see the LICENSE file for details.
-
+https://github.com/akuchling/jwzthreading
 """
 
 import re
@@ -89,7 +89,7 @@ class Container:
 
 def uniq(alist):
     set = {}
-    return [set.setdefault(e,e) for e in alist if e not in set.keys()]
+    return [set.setdefault(e,e) for e in alist if e not in list(set.keys())]
 
 msgid_pat = re.compile('<([^>]+)>')
 restrip_pat = re.compile("""(
@@ -229,7 +229,7 @@ def thread (msglist):
             prev.add_child(this_container)
 
     # 2. Find root set
-    root_set = [container for container in id_table.values()
+    root_set = [container for container in list(id_table.values())
                 if container.parent is None]
 
     # 3. Delete id_table
@@ -332,7 +332,7 @@ def main():
     mbox = mailbox.UnixMailbox(f)
     msglist = []
     while 1:
-        msg = mbox.next()
+        msg = next(mbox)
         if msg is None:
             break
         m = make_message(msg)
@@ -343,7 +343,7 @@ def main():
     subject_table = thread(msglist)
 
     # Output
-    L = subject_table.items()
+    L = list(subject_table.items())
     L.sort()
     for subj, container in L:
         print_container(container)
